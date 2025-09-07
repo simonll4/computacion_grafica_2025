@@ -1,0 +1,7 @@
+# Tabla de vértices
+# Columnas: id  x   y
+1 10 10
+2 10 50
+3 40 20
+4 40 40
+5 70 10

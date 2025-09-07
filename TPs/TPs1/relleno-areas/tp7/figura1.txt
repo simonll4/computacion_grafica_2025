@@ -1,0 +1,5 @@
+# Practico 7 - Polígono 1 (triángulo)
+# id x y
+1 80 50
+2 130 140
+3 30 40
