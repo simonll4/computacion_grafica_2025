@@ -2,65 +2,111 @@
 //
 // Compilar: g++ -std=c++17 -O2 tp1.cpp -o tp1
 // Uso:      ./tp1 x0 y0 x1 y1 salida.ppm [W H]
+// Ejemplo:  ./tp1 10 80 200 400 recta.ppm 500 500
 //
 // Notas:
 // - Origen del usuario: (0,0) abajo-izquierda. y crece hacia ARRIBA.
-// - El archivo PPM se escribe con la fila 0 en la parte superior,por lo que se hace flip vertical al volcar cada píxel.
+// - El archivo PPM se escribe con la fila 0 en la parte superior, por lo que se hace flip vertical al volcar cada píxel.
 // - Si se pasan W H, se dibuja en ese lienzo (clipping: fuera de [0..W-1]x[0..H-1] no pinta).
 // - Si NO se pasan W H, se autocalcula un lienzo que encuadre la recta con margen.
 // - Por consigna, NO se dibujan líneas horizontales (y0==y1) ni verticales (x0==x1).
 // - Fondo blanco en todas las imágenes generadas.
 
 #include "../common/image_ppm.h"
+#include <algorithm>
+#include <cstdint>
+#include <climits>
+#include <cstdlib>
 #include <cmath>
+#include <iostream>
+#include <string>
 
-// ================================= Bresenham  =================================
-// Versión que NO dibuja líneas horizontales ni verticales
-bool drawLineBresenhamRestricted(Image &img, int x0, int y0, int x1, int y1, RGB color)
+// =================== Bresenham Para Todos los Casos ===================
+// Implementación didáctica basada en la regla del punto medio.
+// Cubre todos los octantes separando los casos |m| <= 1 y |m| > 1.
+bool drawLineBresenham(Image &img, int x0, int y0, int x1, int y1, RGB color)
 {
+    // 1) Criterio del TP1: excluir horizontales y verticales
     if (y0 == y1)
-        return false; // horizontal (excluida)
+        return false; // horizontal
     if (x0 == x1)
-        return false; // vertical   (excluida)
+        return false; // vertical
 
-    bool steep = std::abs(y1 - y0) > std::abs(x1 - x0);
-    if (steep)
-    {
-        std::swap(x0, y0);
-        std::swap(x1, y1);
-    }
+    // 2) Diferencias absolutas y signos (cubren 4 cuadrantes / 8 octantes)
+    const int dx = std::abs(x1 - x0);
+    const int dy = std::abs(y1 - y0);
+    const int sx = (x0 < x1) ? 1 : -1; // sentido en x
+    const int sy = (y0 < y1) ? 1 : -1; // sentido en y
 
-    if (x0 > x1)
-    {
-        std::swap(x0, x1);
-        std::swap(y0, y1);
-    }
-
-    int dx = x1 - x0;
-    int dy = std::abs(y1 - y0);
-    int err = dx / 2;
-    int ystep = (y0 < y1) ? 1 : -1;
+    // 3) Punto de partida
+    int x = x0;
     int y = y0;
 
-    for (int x = x0; x <= x1; ++x)
+    // 4) Elegir eje principal según la pendiente
+    if (dx >= dy)
     {
-        if (steep)
-            img.putUser(y, x, color);
-        else
-            img.putUser(x, y, color);
-        err -= dy;
-        if (err < 0)
+        // ----- CASO A: |m| <= 1 → avanzar en x -----
+        // Variable de decisión (D0) y sus incrementos:
+        int des_var = 2 * dy - dx;         // D0 = 2Δy - Δx
+        const int dd_ady = 2 * dy;         // ΔD si elijo pixel adyacente (E/W)
+        const int dd_asup = 2 * (dy - dx); // ΔD si elijo pixel diagonal (NE/SE o NW/SW)
+        const int steps = dx;              // cantidad de iteraciones sobre el eje principal
+
+        for (int i = 0; i <= steps; ++i)
         {
-            y += ystep;
-            err += dx;
+            // Pintar en coordenadas de usuario (y hacia arriba).
+            // putUser hace el flip vertical al espacio de imagen PPM.
+            img.putUser(x, y, color);
+
+            // Regla de decisión incremental:
+            // Si D < 0 → el punto medio cae por debajo → elegir adyacente (solo x)
+            // Si D >= 0 → el punto medio cae por arriba → elegir diagonal (ajusto y)
+            if (des_var < 0)
+            {
+                des_var += dd_ady; // mantengo y
+            }
+            else
+            {
+                des_var += dd_asup;
+                y += sy; // ajusto y en el sentido correcto
+            }
+
+            x += sx; // avanzar un paso en x siempre
         }
     }
+    else
+    {
+        // ----- CASO B: |m| > 1 → avanzar en y -----
+        // Mismos conceptos, con roles x↔y intercambiados:
+        int des_var = 2 * dx - dy;         // D0' = 2Δx - Δy
+        const int dd_ady = 2 * dx;         // ΔD' si elijo adyacente vertical (N/S)
+        const int dd_asup = 2 * (dx - dy); // ΔD' si elijo "lateral" (ajusto x)
+        const int steps = dy;
+
+        for (int i = 0; i <= steps; ++i)
+        {
+            img.putUser(x, y, color);
+
+            if (des_var < 0)
+            {
+                des_var += dd_ady; // mantengo x
+            }
+            else
+            {
+                des_var += dd_asup;
+                x += sx; // ajusto x en el sentido correcto
+            }
+
+            y += sy; // avanzar un paso en y siempre
+        }
+    }
+
     return true;
 }
 
+// ================================ main ================================
 int main(int argc, char **argv)
 {
-
     // parseo CLI para obtener las coordenadas y el archivo de salida
     if (argc != 6 && argc != 8)
     {
@@ -88,29 +134,28 @@ int main(int argc, char **argv)
     }
     int x0 = int(X0), y0 = int(Y0), x1 = int(X1), y1 = int(Y1);
 
-    // Fondo blanco y línea negra
-    RGB bg{255, 255, 255};
-    RGB fg{0, 0, 0};
+    // Colores
+    RGB bg{255, 255, 255}; // blanco
+    RGB fg{0, 0, 0};       // negro
 
-    // Si se proporcionan W y H, se dibuja en ese lienzo
+    // (A) Si se proporcionan W y H, se dibuja en ese lienzo
     if (argc == 8)
     {
         int W = std::max(1, std::atoi(argv[6]));
         int H = std::max(1, std::atoi(argv[7]));
         Image img(W, H, bg);
 
-        bool ok = drawLineBresenhamRestricted(img, x0, y0, x1, y1, fg);
+        bool ok = drawLineBresenham(img, x0, y0, x1, y1, fg);
         if (!ok)
             std::cerr << "Aviso: linea horizontal o vertical. Por consigna, no se dibuja.\n";
 
         img.writePPM(outPath);
         return 0;
     }
-    // Si no se proporcionan W y H, se autocalcula un lienzo que encuadre la recta con margen
+    // (B) Si no se proporcionan W y H, se autocalcula un lienzo que encuadre la recta con margen
     else
     {
-
-        // Autodimensionado con margen en coords usuario (origen abajo-izquierda)
+        // Autodimensionado con margen en coords de usuario (origen abajo-izquierda)
         int xmin = std::min(x0, x1), xmax = std::max(x0, x1);
         int ymin = std::min(y0, y1), ymax = std::max(y0, y1);
         const int MARGIN = 5;
@@ -122,13 +167,13 @@ int main(int argc, char **argv)
 
         Image img(W, H, bg);
 
-        // Trasladar la línea para que el bbox arranque en (MARGIN, MARGIN) en coords usuario (abajo-izquierda)
-        int ax0 = x0 - (xmin - MARGIN);
-        int ay0 = y0 - (ymin - MARGIN);
-        int ax1 = x1 - (xmin - MARGIN);
-        int ay1 = y1 - (ymin - MARGIN);
+        // Trasladar la línea para que el bbox arranque en (MARGIN, MARGIN) en coords usuario
+        const int ax0 = x0 - (xmin - MARGIN);
+        const int ay0 = y0 - (ymin - MARGIN);
+        const int ax1 = x1 - (xmin - MARGIN);
+        const int ay1 = y1 - (ymin - MARGIN);
 
-        bool ok = drawLineBresenhamRestricted(img, ax0, ay0, ax1, ay1, fg);
+        bool ok = drawLineBresenham(img, ax0, ay0, ax1, ay1, fg); // <- unificada la llamada
         if (!ok)
             std::cerr << "Aviso: linea horizontal o vertical. Por consigna, no se dibuja.\n";
 

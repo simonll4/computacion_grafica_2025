@@ -1,24 +1,36 @@
-// CGyAV - Práctico 5: Elipse completa (4 cuadrantes) con Punto Medio
-// Compilar: g++ -std=c++17 -O2 tp5.cpp -o tp5
-// Uso:
-//   ./tp5 salida.ppm  W  H   cx  cy   rx  ry   [R G B] ---> ./tp5 elipse1.ppm 400 300 200 150 120 80
-//   - salida.ppm : archivo PPM de salida
-//   - W H        : tamaño del lienzo en píxeles
-//   - cx cy      : centro de la elipse (coordenadas de usuario, origen abajo-izquierda)
-//   - rx ry      : semiejes (rx eje X, ry eje Y) enteros >= 0
-//   - [R G B]    : color de trazo (opcional, 0..255; default: 0 0 0 negro)
+// CGyAV - Práctico 5: Digitalización de Elipses con Algoritmo de Punto Medio
 //
-// Notas de coordenadas y PPM:
-// - Origen del usuario en (0,0) abajo-izquierda. y crece hacia ARRIBA.
-// - Se usa image_ppm.h (Image::putUser) que ya hace el flip vertical al raster PPM.
+// COMPILACIÓN:
+//   g++ -std=c++17 -O2 tp5.cpp -o tp5
 //
-// Algoritmo (midpoint ellipse):
-// - Se trabaja con la elipse centrada en el ORIGEN, se recorren puntos del primer cuadrante
-//   y se reflejan a 4 cuadrantes por simetría (±x, ±y). Luego se traslada al centro (cx,cy).
-// - Región 1 (pendiente en magnitud > 1): avanzar principalmente en x.
-// - Región 2 (pendiente en magnitud < 1): decrecer principalmente en y.
-// - Se evita punto flotante usando una variable de decisión ENTERA escalada por 4.
-//   Esto elimina los 0.25/0.5 de los puntos medios clásicos.
+// USO:
+//   ./tp5 salida.ppm W H cx cy rx ry [R G B]
+//
+// PARÁMETROS:
+//   salida.ppm : archivo PPM de salida
+//   W H        : dimensiones del lienzo (ancho x alto en píxeles)
+//   cx cy      : coordenadas del centro de la elipse
+//   rx ry      : semiejes horizontal y vertical (enteros >= 0)
+//   [R G B]    : color del trazo RGB (0-255, opcional, default: negro)
+//
+// EJEMPLOS DE EJECUCIÓN:
+//   ./tp5 elipse.ppm 400 300 200 150 120 80
+//   ./tp5 elipse_roja.ppm 500 400 250 200 100 60 255 0 0
+//   ./tp5 elipse_azul.ppm 600 600 300 300 150 100 0 0 255
+//
+// SISTEMA DE COORDENADAS:
+//   - Origen: (0,0) en esquina inferior-izquierda
+//   - Eje X: hacia la derecha
+//   - Eje Y: hacia arriba
+//   - La función putUser() maneja automáticamente el flip vertical
+//
+// ALGORITMO DE PUNTO MEDIO PARA ELIPSES:
+//   - Ecuación de la elipse: (x/rx)² + (y/ry)² = 1
+//   - Se divide en dos regiones según la pendiente de la tangente
+//   - Región 1: |pendiente| < 1 (avanzar principalmente en x)
+//   - Región 2: |pendiente| > 1 (avanzar principalmente en y)
+//   - Usa simetría de 4 puntos para completar toda la elipse
+//   - Variables de decisión enteras para evitar aritmética flotante
 
 #include <cstdint>
 #include <cstdlib>
@@ -33,120 +45,99 @@ static inline RGB rgbClamp(int r, int g, int b)
     return RGB(uint8_t(sat(r)), uint8_t(sat(g)), uint8_t(sat(b)));
 }
 
-// Traza los 4 puntos simétricos (cuadrantes) de la elipse para (x,y) relativo al centro (cx,cy)
+// ===== FUNCIÓN DE SIMETRÍA: PINTAR 4 PUNTOS =====
+// Dada una coordenada (x,y) calculada en el primer cuadrante,
+// pinta los 4 puntos simétricos para completar toda la elipse
 static inline void plot4(Image &img, int cx, int cy, int x, int y, RGB col)
 {
-    img.putUser(cx + x, cy + y, col);
-    img.putUser(cx - x, cy + y, col);
-    img.putUser(cx + x, cy - y, col);
-    img.putUser(cx - x, cy - y, col);
+    img.putUser(cx + x, cy + y, col);          // Cuadrante I:  (+x, +y)
+    img.putUser(cx - x, cy + y, col);          // Cuadrante II: (-x, +y)
+    img.putUser(cx + x, cy - y, col);          // Cuadrante IV: (+x, -y)
+    img.putUser(cx - x, cy - y, col);          // Cuadrante III:(-x, -y)
 }
 
-// Dibuja una elipse completa en “posición estándar” (ejes alineados a X/Y) con centro (cx,cy)
+// ===== ALGORITMO DE PUNTO MEDIO PARA ELIPSES =====
+// Basado en la implementación de referencia, con comentarios paso a paso
 void drawEllipseMidpoint(Image &img, int cx, int cy, int rx, int ry, RGB col)
 {
-    if (rx < 0 || ry < 0)
-        return;
+    // Validación básica
+    if (rx < 0 || ry < 0) return;
 
-    // Casos degenerados: puntos o segmentos
-    if (rx == 0 && ry == 0)
-    {
+    // Casos especiales
+    if (rx == 0 && ry == 0) {
         img.putUser(cx, cy, col);
         return;
     }
-    if (rx == 0)
-    {
+    if (rx == 0) {
         for (int y = -ry; y <= ry; ++y)
             img.putUser(cx, cy + y, col);
         return;
     }
-    if (ry == 0)
-    {
+    if (ry == 0) {
         for (int x = -rx; x <= rx; ++x)
             img.putUser(cx + x, cy, col);
         return;
     }
 
-    // Trabajamos con enteros de 64-bit para evitar overflow en rx^2, ry^2, etc.
-    const long long rx2 = 1LL * rx * rx;
-    const long long ry2 = 1LL * ry * ry;
-    const long long twoRx2 = 2LL * rx2;
-    const long long twoRy2 = 2LL * ry2;
+    // ===== INICIALIZACIÓN =====
+    int x = 0;                          // Comenzamos en x = 0
+    int y = ry;                         // y = semieje vertical (punto más alto)
 
-    // Variables de recorrido (primer cuadrante)
-    int x = 0;
-    int y = ry;
+    // Precálculos para evitar multiplicaciones repetidas
+    int rx2 = rx * rx;                  // rx²
+    int ry2 = ry * ry;                  // ry²
+    int twoRx2 = 2 * rx2;              // 2*rx²
+    int twoRy2 = 2 * ry2;              // 2*ry²
 
-    // Derivadas (escaladas sin factor 4 aún): dx = 2*ry^2*x, dy = 2*rx^2*y
-    long long dx = twoRy2 * x; // = 0
-    long long dy = twoRx2 * y; // = 2*rx^2*ry
+    // Variables para las derivadas (acumuladores incrementales)
+    int dx = 0;                         // Acumulador para avances en x
+    int dy = twoRx2 * y;               // Acumulador para avances en y = 2*rx²*ry
 
-    // Para la decisión usamos D escalado por 4 para eliminar fracciones:
-    // Región 1 init: D1 = 4*(ry^2 - rx^2*ry + 0.25*rx^2) = 4*ry^2 - 4*rx^2*ry + rx^2
-    long long D1 = 4LL * ry2 - 4LL * rx2 * y + rx2;
+    // ===== REGIÓN 1: AVANZAR PRINCIPALMENTE EN X =====
+    // Condición: dx < dy (equivalente a pendiente > -1)
+    // Variable de decisión inicial (multiplicada por 4 para evitar fracciones)
+    int d1 = 4 * ry2 - 4 * rx2 * ry + rx2;
 
-    // También guardamos versiones "por 4" de dx, dy para actualizaciones compactas
-    long long dx4 = 4LL * dx; // = 0
-    long long dy4 = 4LL * dy; // = 8*rx^2*ry
-
-    // -------- Región 1: avanzar en x mientras 2*ry^2*x <= 2*rx^2*y  (comparación equivalente con escalas por 4)
-    while (dx4 <= dy4)
-    {
+    while (dx < dy) {
+        // Pintar los 4 puntos simétricos
         plot4(img, cx, cy, x, y, col);
 
-        if (D1 < 0)
-        {
-            // Elegir E (x++)
-            x += 1;
-            dx += twoRy2;   // dx = 2*ry^2*x
-            dx4 = 4LL * dx; // = 8*ry^2*x
-            // ΔD1 = 4*dx + 4*ry^2  (usando dx actualizado)
-            D1 += dx4 + 4LL * ry2;
-        }
-        else
-        {
-            // Elegir SE (x++, y--)
-            x += 1;
-            y -= 1;
-            dx += twoRy2;   // dx = 2*ry^2*x
-            dy -= twoRx2;   // dy = 2*rx^2*y
-            dx4 = 4LL * dx; // = 8*ry^2*x
-            dy4 = 4LL * dy; // = 8*rx^2*y
-            // ΔD1 = 4*dx - 4*dy + 4*ry^2  (dx,dy actualizados)
-            D1 += dx4 - dy4 + 4LL * ry2;
+        if (d1 < 0) {
+            // CASO 1: d1 < 0 → Elegir píxel ESTE (solo avanzar en x)
+            x++;                        // Incrementar x
+            dx += twoRy2;              // Actualizar dx = dx + 2*ry²
+            d1 += dx + 4 * ry2;        // Actualizar d1
+        } else {
+            // CASO 2: d1 >= 0 → Elegir píxel SURESTE (avanzar en x y decrementar y)
+            x++;                        // Incrementar x
+            y--;                        // Decrementar y
+            dx += twoRy2;              // Actualizar dx = dx + 2*ry²
+            dy -= twoRx2;              // Actualizar dy = dy - 2*rx²
+            d1 += dx - dy + 4 * ry2;   // Actualizar d1
         }
     }
 
-    // -------- Región 2: decrecer y mientras y>=0
-    // D2 = 4*ry^2*(x+0.5)^2 + 4*rx^2*(y-1)^2 - 4*rx^2*ry^2
-    long long D2 =
-        4LL * ry2 * x * 1LL * x + 4LL * ry2 * x + ry2 +
-        4LL * rx2 * y * 1LL * y - 8LL * rx2 * y + 4LL * rx2 - 4LL * rx2 * ry2;
+    // ===== REGIÓN 2: AVANZAR PRINCIPALMENTE EN Y =====
+    // Condición: y >= 0 (hasta llegar al eje x)
+    // Nueva variable de decisión para la región 2
+    int d2 = (ry2 * (2 * x + 1) * (2 * x + 1) + rx2 * (2 * y - 2) * (2 * y - 2) - 4 * rx2 * ry2);
 
-    while (y >= 0)
-    {
+    while (y >= 0) {
+        // Pintar los 4 puntos simétricos
         plot4(img, cx, cy, x, y, col);
 
-        if (D2 > 0)
-        {
-            // Elegir S (y--)
-            y -= 1;
-            dy -= twoRx2;   // dy = 2*rx^2*y
-            dy4 = 4LL * dy; // = 8*rx^2*y
-            // ΔD2 = 4*rx^2 - 4*dy   (dy actualizado)
-            D2 += 4LL * rx2 - dy4;
-        }
-        else
-        {
-            // Elegir SE (x++, y--)
-            x += 1;
-            y -= 1;
-            dx += twoRy2;   // dx = 2*ry^2*x
-            dy -= twoRx2;   // dy = 2*rx^2*y
-            dx4 = 4LL * dx; // = 8*ry^2*x
-            dy4 = 4LL * dy; // = 8*rx^2*y
-            // ΔD2 = 4*dx - 4*dy + 4*rx^2  (dx,dy actualizados)
-            D2 += dx4 - dy4 + 4LL * rx2;
+        if (d2 > 0) {
+            // CASO 1: d2 > 0 → Elegir píxel SUR (solo decrementar y)
+            y--;                        // Decrementar y
+            dy -= twoRx2;              // Actualizar dy = dy - 2*rx²
+            d2 += rx2 - dy;            // Actualizar d2
+        } else {
+            // CASO 2: d2 <= 0 → Elegir píxel SURESTE (avanzar en x y decrementar y)
+            x++;                        // Incrementar x
+            y--;                        // Decrementar y
+            dx += twoRy2;              // Actualizar dx = dx + 2*ry²
+            dy -= twoRx2;              // Actualizar dy = dy - 2*rx²
+            d2 += dx - dy + rx2;       // Actualizar d2
         }
     }
 }

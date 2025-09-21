@@ -1,4 +1,4 @@
-// graphics_common.h -contiene estructuras de imagen y funciones PPM reutilizables
+// contiene estructuras de imagen y funciones PPM reutilizables
 
 #ifndef GRAPHICS_COMMON_H
 #define GRAPHICS_COMMON_H
