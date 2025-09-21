@@ -1,7 +1,24 @@
-// main.cpp — TP2 Guía 2 (versión simple: sólo SPACE para pausar)
-// Animaciones: rotación alrededor del vértice superior (1),
-// pulso alrededor del centroide (2),
-// traslación rígida con el vértice superior moviéndose en circunferencia (3).
+/**
+
+*TP2 - Guía 2: Transformaciones 2D con OpenGL
+ * 
+ * Este programa implementa tres tipos de animaciones geométricas aplicadas a un triángulo:
+ * 
+ * MODO 1 (Tecla '1'): ROTACIÓN ALREDEDOR DEL VÉRTICE SUPERIOR
+ * 
+ * MODO 2 (Tecla '2'): PULSO ALREDEDOR DEL CENTROIDE
+ * 
+ * MODO 3 (Tecla '3'): TRASLACIÓN RÍGIDA CIRCULAR
+ * 
+ * CONTROLES:
+ *   - Teclas 1/2/3: Cambiar entre modos de animación
+ *   - ESPACIO: Pausar/reanudar animación
+ *   - ESC: Salir del programa
+ * 
+ * COMPILACIÓN:
+ *   make
+ *   ./build/OGL-program
+ */
 
 extern "C"
 {
@@ -21,46 +38,82 @@ extern "C"
 #include "SimpleMesh.h"
 #include "Ortho.h"
 
-// ---------------- Config ventana ----------------
+// ============================================================================
+// CONFIGURACIÓN DE LA VENTANA Y CONSTANTES GLOBALES
+// ============================================================================
 static const char *kTitle = "TP2 - Guía 2 (GL core) - Simple";
 static int kW = 1200, kH = 1200;
 
-// Modo de animación (elegido por teclado 1/2/3)
+/**
+ * Cada modo implementa una transformación geométrica diferente:
+ * - RotatePivot: Rotación alrededor del vértice superior
+ * - Pulse: Escalado oscilatorio desde el centroide
+ * - RigidCircle: Traslación circular manteniendo la forma
+ */
 enum class Mode
 {
-	RotatePivot = 1,
-	Pulse = 2,
-	RigidCircle = 3
+	RotatePivot = 1,  ///< Modo 1: Rotación sobre vértice superior
+	Pulse = 2,        ///< Modo 2: Escalado pulsante desde centroide
+	RigidCircle = 3   ///< Modo 3: Traslación circular rígida
 };
 
-// Estado global (sólo pausa/tiempos)
+/**
+ * Gestiona el modo de animación actual, el estado de pausa y los tiempos
+ * necesarios para calcular correctamente las animaciones.
+ */
 struct AppState
 {
-	Mode mode = Mode::RotatePivot;
-	bool paused = false;
-	double t0 = 0.0;	 // tiempo base (inicio o al salir de pausa)
-	double tPause = 0.0; // instante en el que se pausó
+	Mode mode = Mode::RotatePivot;  ///< Modo de animación actual
+	bool paused = false;            ///< Estado de pausa de la animación
+	double t0 = 0.0;               ///< Tiempo base (inicio o reanudación)
+	double tPause = 0.0;           ///< Momento en que se pausó la animación
 } gState;
 
-// ---------------- Triángulo en espacio local ----------------
+// ============================================================================
+// GEOMETRÍA DEL TRIÁNGULO Y FUNCIONES AUXILIARES
+// ============================================================================
+/**
+ * El triángulo está definido con:
+ * - Vértice superior (v0): (0.0, 0.3) - Usado como pivote para rotación
+ * - Vértice inferior izquierdo (v1): (-0.25, -0.2)
+ * - Vértice inferior derecho (v2): (0.25, -0.2)
+ * 
+ * Formato: [x0, y0, z0, x1, y1, z1, x2, y2, z2]
+ */
 static const std::array<float, 9> kTri = {
-	0.0f, 0.3f, 0.0f,	 // v0: TOP (pivote)
-	-0.25f, -0.2f, 0.0f, // v1
-	0.25f, -0.2f, 0.0f	 // v2
+	0.0f, 0.3f, 0.0f,    // v0: Vértice superior (pivote de rotación)
+	-0.25f, -0.2f, 0.0f, // v1: Vértice inferior izquierdo
+	0.25f, -0.2f, 0.0f   // v2: Vértice inferior derecho
 };
 
+/**
+ * Obtiene la posición del vértice superior del triángulo
+ * return Coordenadas 2D del vértice superior (usado como pivote)
+ */
 static glm::vec2 topLocal()
 {
 	return {kTri[0], kTri[1]};
 }
+
+/**
+ * El centroide se calcula como el promedio de las coordenadas de los tres vértices:
+ * centroide = (v0 + v1 + v2) / 3
+ */
 static glm::vec2 centroid()
 {
 	return {
-		(kTri[0] + kTri[3] + kTri[6]) / 3.0f,
-		(kTri[1] + kTri[4] + kTri[7]) / 3.0f};
+		(kTri[0] + kTri[3] + kTri[6]) / 3.0f,  // Promedio de coordenadas X
+		(kTri[1] + kTri[4] + kTri[7]) / 3.0f   // Promedio de coordenadas Y
+	};
 }
 
-// ---------------- Callbacks / helpers ----------------
+// ============================================================================
+// CALLBACKS Y FUNCIONES AUXILIARES
+// ============================================================================
+/**
+ * Actualiza el viewport de OpenGL cuando la ventana cambia de tamaño,
+ * manteniendo la relación de aspecto correcta.
+ */
 static void framebuffer_size_callback(GLFWwindow *, int w, int h)
 {
 	kW = w;
@@ -68,13 +121,26 @@ static void framebuffer_size_callback(GLFWwindow *, int w, int h)
 	glViewport(0, 0, w, h);
 }
 
+/**
+ * @brief Imprime información del sistema gráfico
+ * 
+ * Muestra el renderizador y la versión de OpenGL disponible,
+ * útil para debugging y verificación del sistema.
+ */
 static void print_gl()
 {
 	std::cout << "Renderer: " << glGetString(GL_RENDERER) << "\n";
 	std::cout << "OpenGL:   " << glGetString(GL_VERSION) << "\n";
 }
 
-// Input: ESC, 1/2/3, SPACE pausa (sin R/Q/E)
+/**
+ * CONTROLES DISPONIBLES:
+ * - ESC: Cierra la aplicación
+ * - Tecla '1': Activa modo de rotación alrededor del vértice superior
+ * - Tecla '2': Activa modo de pulso (escalado) alrededor del centroide
+ * - Tecla '3': Activa modo de traslación circular rígida
+ * - ESPACIO: Pausa/reanuda la animación (mantiene el estado del tiempo)
+ */
 static void processInput(GLFWwindow *win)
 {
 	if (glfwGetKey(win, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -107,18 +173,33 @@ static void processInput(GLFWwindow *win)
 		spacePressed = false;
 }
 
-// Tiempo “virtual” sin escalado (respeta la pausa)
+/**
+ * Esta función maneja correctamente el tiempo durante las pausas:
+ * - Si está pausado: devuelve el tiempo en el momento de la pausa
+ * - Si no está pausado: devuelve el tiempo actual menos las pausas acumuladas
+ * 
+ * Esto permite que las animaciones se reanuden exactamente donde se pausaron.
+ */
 static float tNow()
 {
 	const double now = glfwGetTime();
-	const double t = gState.paused ? (gState.tPause - gState.t0)
-								   : (now - gState.t0);
+	const double t = gState.paused ? (gState.tPause - gState.t0)  // Tiempo congelado en pausa
+								   : (now - gState.t0);              // Tiempo actual menos pausas
 	return float(t);
 }
 
-// ---------------- Programa principal ----------------
+// ============================================================================
+// PROGRAMA PRINCIPAL
+// ============================================================================
+/**
+ * Inicializa OpenGL, crea la ventana, configura los recursos gráficos
+ * y ejecuta el bucle principal de renderizado y animación.
+ */
 int main()
 {
+	// ====================================================================
+	// INICIALIZACIÓN DE GLFW Y CONFIGURACIÓN DE CONTEXTO OPENGL
+	// ====================================================================
 	if (!glfwInit())
 	{
 		std::cerr << "GLFW init failed\n";
@@ -146,70 +227,96 @@ int main()
 	}
 	print_gl();
 
+	// ====================================================================
+	// CONFIGURACIÓN DE RECURSOS GRÁFICOS
+	// ====================================================================
 	std::vector<float> tri(kTri.begin(), kTri.end());
-	SimpleMesh mesh(tri, /*useIndices*/ false);
+	SimpleMesh mesh(tri, /*useIndices*/ false);  // Crear mesh del triángulo
 
-	Shader shader("shaders/basic.vert", "shaders/basic.frag");
+	Shader shader("shaders/basic.vert", "shaders/basic.frag");  // Cargar shaders
 
-	glClearColor(0.08f, 0.08f, 0.10f, 1.0f);
-	gState.t0 = glfwGetTime();
+	glClearColor(0.08f, 0.08f, 0.10f, 1.0f);  // Color de fondo (gris oscuro)
+	gState.t0 = glfwGetTime();  // Inicializar tiempo base
 
-	const glm::vec2 pTop = topLocal();
-	const glm::vec2 c = centroid();
-	const glm::mat4 V(1.0f);
+	// Precalcular puntos importantes del triángulo
+	const glm::vec2 pTop = topLocal();  // Vértice superior (pivote)
+	const glm::vec2 c = centroid();     // Centro geométrico
+	const glm::mat4 V(1.0f);            // Matriz de vista (identidad)
 
+	// ====================================================================
+	// BUCLE PRINCIPAL DE RENDERIZADO
+	// ====================================================================
 	while (!glfwWindowShouldClose(win))
 	{
-		processInput(win);
-		glClear(GL_COLOR_BUFFER_BIT);
+		processInput(win);                    // Procesar entrada del teclado
+		glClear(GL_COLOR_BUFFER_BIT);         // Limpiar buffer de color
 
-		const float t = tNow();
+		const float t = tNow();               // Obtener tiempo actual de animación
 
-		// Proyección ortográfica dependiente del aspect
+		// Configurar proyección ortográfica manteniendo aspect ratio
 		glm::mat4 P = orthoAspect((float)kW, (float)kH, 0.8f);
 
-		glm::mat4 M(1.0f);
+		// ====================================================================
+		// CÁLCULO DE LA MATRIZ DE TRANSFORMACIÓN SEGÚN EL MODO ACTIVO
+		// ====================================================================
+		glm::mat4 M(1.0f);  // Matriz identidad como punto de partida
+		
 		if (gState.mode == Mode::RotatePivot)
 		{
-			// M = T(pTop) * Rz(wt) * T(-pTop)
-			const float w = 1.2f; // rad/s
-			M = glm::translate(M, glm::vec3(pTop, 0.0f));
-			M = glm::rotate(M, w * t, glm::vec3(0, 0, 1));
-			M = glm::translate(M, glm::vec3(-pTop, 0.0f));
+			// MODO 1: ROTACIÓN ALREDEDOR DEL VÉRTICE SUPERIOR
+			// Fórmula: M = T(pivot) * R(ángulo) * T(-pivot)
+			// 1. Trasladar el pivote al origen
+			// 2. Aplicar rotación
+			// 3. Trasladar de vuelta a la posición original
+			const float w = 1.2f; // Velocidad angular en rad/s
+			M = glm::translate(M, glm::vec3(pTop, 0.0f));        // T(pivot)
+			M = glm::rotate(M, w * t, glm::vec3(0, 0, 1));       // R(wt) en Z
+			M = glm::translate(M, glm::vec3(-pTop, 0.0f));       // T(-pivot)
 		}
 		else if (gState.mode == Mode::Pulse)
 		{
-			// Escala isótropa alrededor del centroide
-			const float A = 0.2f;
-			const float w = 2.0f;
-			const float s = 1.0f + A * std::sin(w * t);
-			M = glm::translate(M, glm::vec3(c, 0.0f));
-			M = glm::scale(M, glm::vec3(s, s, 1.0f));
-			M = glm::translate(M, glm::vec3(-c, 0.0f));
+			// MODO 2: ESCALADO PULSANTE DESDE EL CENTROIDE
+			// Fórmula: M = T(centroide) * S(factor) * T(-centroide)
+			// El factor de escala oscila sinusoidalmente
+			const float A = 0.2f;  // Amplitud del pulso (±20%)
+			const float w = 2.0f;  // Frecuencia del pulso en rad/s
+			const float s = 1.0f + A * std::sin(w * t);  // Factor: 0.8 a 1.2
+			M = glm::translate(M, glm::vec3(c, 0.0f));           // T(centroide)
+			M = glm::scale(M, glm::vec3(s, s, 1.0f));            // S(factor)
+			M = glm::translate(M, glm::vec3(-c, 0.0f));          // T(-centroide)
 		}
-		else
-		{ // RigidCircle
-			// Vértice superior describe circunferencia de radio R
-			const float R = 0.3f;
-			const float w = 0.8f;
-			const float xd = R * std::cos(w * t);
-			const float yd = R * std::sin(w * t);
+		else // Mode::RigidCircle
+		{
+			// MODO 3: TRASLACIÓN CIRCULAR RÍGIDA
+			// El vértice superior describe una circunferencia de radio R
+			// El triángulo mantiene su forma y orientación
+			const float R = 0.3f;  // Radio de la circunferencia
+			const float w = 0.8f;  // Velocidad angular en rad/s
+			const float xd = R * std::cos(w * t);  // Posición X deseada del vértice
+			const float yd = R * std::sin(w * t);  // Posición Y deseada del vértice
+			// Calcular desplazamiento necesario desde posición actual
 			M = glm::translate(M, glm::vec3(xd - pTop.x, yd - pTop.y, 0.0f));
 		}
 
-		shader.use();
-		shader.setMat4("uModel", &M[0][0]);
-		shader.setMat4("uView", &V[0][0]);
-		shader.setMat4("uProj", &P[0][0]);
-		shader.setVec3("uColor", 0.92f, 0.52f, 0.20f);
+		// ====================================================================
+		// RENDERIZADO DEL TRIÁNGULO
+		// ====================================================================
+		shader.use();                                          // Activar programa shader
+		shader.setMat4("uModel", &M[0][0]);                   // Matriz modelo (transformación)
+		shader.setMat4("uView", &V[0][0]);                    // Matriz vista
+		shader.setMat4("uProj", &P[0][0]);                    // Matriz proyección
+		shader.setVec3("uColor", 0.92f, 0.52f, 0.20f);       // Color naranja
 
-		mesh.bind();
-		mesh.draw();
+		mesh.bind();                                           // Vincular geometría
+		mesh.draw();                                           // Dibujar triángulo
 
-		glfwSwapBuffers(win);
-		glfwPollEvents();
+		glfwSwapBuffers(win);                                  // Intercambiar buffers
+		glfwPollEvents();                                      // Procesar eventos
 	}
 
-	glfwTerminate();
-	return 0;
+	// ====================================================================
+	// LIMPIEZA Y FINALIZACIÓN
+	// ====================================================================
+	glfwTerminate();  // Liberar recursos de GLFW
+	return 0;         // Salida exitosa
 }
