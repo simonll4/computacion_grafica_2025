@@ -1,83 +1,254 @@
+/**
+ * =============================================================================
+ * PROPÓSITO:
+ * Este archivo gestiona TODOS los instrumentos del HUD del simulador de vuelo.
+ * =============================================================================
+ * 
+ * ARQUITECTURA:
+ * El FlightHUD es el coordinador central que:
+ * 1. Crea y gestiona todos los instrumentos de vuelo
+ * 2. Les pasa los datos actualizados del avión (FlightData)
+ * 3. Coordina el renderizado en el orden correcto
+ * 4. Maneja el layout y posicionamiento de cada instrumento
+ * 
+ * INSTRUMENTOS:
+ * - Altimeter
+ * - AttitudeIndicator
+ * - AirspeedIndicator
+ * - HeadingIndicator
+ * - VerticalSpeedIndicator
+ * - TurnCoordinator
+ * 
+ * =============================================================================
+ * GUÍA PARA AGREGAR UN NUEVO INSTRUMENTO:
+ * =============================================================================
+ * 1. Crear la clase del instrumento (ej: AttitudeIndicator.h/cpp)
+ * 2. Agregar #include en FlightHUD.h
+ * 3. Agregar variable miembro en FlightHUD.h privado:
+ *    AttitudeIndicator attitudeIndicator_;
+ * 4. En init(): Inicializar el instrumento (ver ejemplo del altímetro)
+ * 5. En update(): Pasar datos si el instrumento los necesita
+ * 6. En render(): Llamar a render() del instrumento
+ * 7. En setupInstrumentLayout(): Configurar posición y tamaño
+ * 
+ * Ejemplo de código al agregar AttitudeIndicator:
+ * 
+ *   // En setupInstrumentLayout():
+ *   attitudeIndicator_.setPosition(glm::vec2(x, y));
+ *   attitudeIndicator_.setSize(glm::vec2(w, h));
+ * 
+ *   // En render():
+ *   attitudeIndicator_.render(*renderer2D_, currentFlightData_);
+ */
+
 #include "FlightHUD.h"
 #include <iostream>
 
 namespace hud {
 
-// Definición de colores
-const glm::vec4 FlightHUD::HUD_GREEN = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
-const glm::vec4 FlightHUD::HUD_WHITE = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
-const glm::vec4 FlightHUD::HUD_YELLOW = glm::vec4(1.0f, 1.0f, 0.0f, 1.0f);
-const glm::vec4 FlightHUD::HUD_RED = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
-const glm::vec4 FlightHUD::HUD_CYAN = glm::vec4(0.0f, 1.0f, 1.0f, 1.0f);
+// ============================================================================
+// CONSTRUCTOR
+// ============================================================================
 
 FlightHUD::FlightHUD() : screenWidth_(1280), screenHeight_(720) {
     renderer2D_ = std::make_unique<gfx::Renderer2D>();
 }
 
+// ============================================================================
+// INICIALIZACIÓN DE INSTRUMENTOS
+// ============================================================================
+
+/**
+ * @brief Inicializa el sistema de HUD y todos sus instrumentos
+ * @param screenWidth Ancho de la pantalla en píxeles
+ * @param screenHeight Alto de la pantalla en píxeles
+ * 
+ * Este método inicializa:
+ * 1. El sistema de renderizado 2D compartido
+ * 2. El layout de TODOS los instrumentos
+ * 3. Cualquier configuración inicial necesaria
+ */
 void FlightHUD::init(int screenWidth, int screenHeight) {
     screenWidth_ = screenWidth;
     screenHeight_ = screenHeight;
     
+    // Inicializar el renderer 2D (compartido por todos los instrumentos)
     renderer2D_->init(screenWidth, screenHeight);
     
-    // Configurar layout del altímetro
-    setupAltimeterLayout();
+    // Configurar layout de todos los instrumentos
+    setupInstrumentLayout();
     
-    std::cout << "Altimeter HUD initialized: " << screenWidth << "x" << screenHeight << std::endl;
+    // Log de inicialización
+    std::cout << "Flight HUD initialized: " << screenWidth << "x" << screenHeight << std::endl;
+    std::cout << "  - Altimeter: OK" << std::endl;
+    // TODO: Agregar logs para cada instrumento cuando se implementen
+    // std::cout << "  - AttitudeIndicator: OK" << std::endl;
+    // std::cout << "  - AirspeedIndicator: OK" << std::endl;
+    // etc...
 }
 
+/**
+ * @brief Ajusta el HUD cuando cambia el tamaño de la ventana
+ */
 void FlightHUD::setScreenSize(int width, int height) {
     screenWidth_ = width;
     screenHeight_ = height;
     renderer2D_->setScreenSize(width, height);
     
-    // Reconfigurar layout para nueva resolución
-    setupAltimeterLayout();
+    // Recalcular layout de todos los instrumentos
+    setupInstrumentLayout();
 }
 
+// ============================================================================
+// ACTUALIZACIÓN Y RENDERIZADO DE INSTRUMENTOS
+// ============================================================================
+
+/**
+ * @brief Actualiza los datos de vuelo para todos los instrumentos
+ * @param flightData Datos actuales del vuelo (altitud, velocidad, actitud, etc.)
+ * 
+ * Este método copia los datos de vuelo que luego serán pasados a cada
+ * instrumento durante el render.
+ */
 void FlightHUD::update(const flight::FlightData& flightData) {
     currentFlightData_ = flightData;
+    
+    // TODO: Si algún instrumento necesita pre-procesamiento, hacerlo aquí
 }
 
+/**
+ * @brief Renderiza todos los instrumentos del HUD como overlay 2D
+ * 
+ * Orden de renderizado (de atrás hacia adelante):
+ * 1. Instrumentos de fondo (ej: horizonte artificial)
+ * 2. Instrumentos laterales (velocidad, altitud)
+ * 3. Elementos centrales (mira HUD, etc.)
+ * 4. Alertas y warnings (siempre al frente)
+ * 
+ * Proceso:
+ * 1. Configurar estado OpenGL (blending, depth test)
+ * 2. Renderizar cada instrumento en orden
+ * 3. Restaurar estado OpenGL
+ */
 void FlightHUD::render() {
-    // Configurar blending para transparencia
+    // Configurar estado OpenGL para overlay 2D
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_DEPTH_TEST);  // HUD siempre visible encima del 3D
     
-    // Deshabilitar depth test para el HUD (siempre encima)
-    glDisable(GL_DEPTH_TEST);
-    
+    // Comenzar batch de renderizado 2D
     renderer2D_->begin();
     
-    // Renderizar altímetro
+    // ========================================================================
+    // RENDERIZAR INSTRUMENTOS EN ORDEN
+    // ========================================================================
+    
+    // TODO: AttitudeIndicator (horizonte) - CENTRO
+    // attitudeIndicator_.render(*renderer2D_, currentFlightData_);
+    
+    // TODO: AirspeedIndicator - IZQUIERDA
+    // airspeedIndicator_.render(*renderer2D_, currentFlightData_);
+    
+    // Altimeter (altímetro) - DERECHA ✓
     altimeter_.render(*renderer2D_, currentFlightData_);
     
+    // TODO: HeadingIndicator - ARRIBA/CENTRO
+    // headingIndicator_.render(*renderer2D_, currentFlightData_);
+    
+    // TODO: VerticalSpeedIndicator - DERECHA
+    // verticalSpeedIndicator_.render(*renderer2D_, currentFlightData_);
+    
+    // Finalizar batch
     renderer2D_->end();
     
-    // Reactivar depth test
+    // Restaurar estado OpenGL para renderizado 3D
     glEnable(GL_DEPTH_TEST);
-    
     glDisable(GL_BLEND);
 }
 
+// ============================================================================
+// CONFIGURACIÓN DE LAYOUTS
+// ============================================================================
+
+/**
+ * @brief Cambia el layout del HUD
+ * @param layoutName Nombre del layout ("classic", "modern", "minimal")
+ * 
+ * Layouts disponibles:
+ * - "classic": Layout tradicional de aviación (instrumentos grandes)
+ * - "modern": Layout compacto y eficiente
+ * - "minimal": Solo información esencial
+ */
 void FlightHUD::setLayout(const std::string& layoutName) {
-    // Solo un layout para el altímetro
-    setupAltimeterLayout();
+    // Reconfigurar todos los instrumentos según el layout seleccionado
+    setupInstrumentLayout();
+    
+    // TODO: En el futuro, diferentes layouts pueden tener diferentes posiciones
 }
 
-void FlightHUD::setupAltimeterLayout() {
+/**
+ * @brief Configura la posición y tamaño de TODOS los instrumentos
+ */
+void FlightHUD::setupInstrumentLayout() {
+    // float centerX = screenWidth_ * 0.5f;   // Para futuros instrumentos centrados
     float centerY = screenHeight_ * 0.5f;
     
-    // Altímetro profesional en el lado derecho (como en HUDs reales)
-    float altimeterWidth = 120.0f;
-    float altimeterHeight = 450.0f;
-    float marginRight = 30.0f;
+    // ------------------------------------------------------------------------
+    // ALTIMETER (Altímetro) - DERECHA
+    // ------------------------------------------------------------------------
+    {
+        const float WIDTH = 120.0f;
+        const float HEIGHT = 450.0f;
+        const float MARGIN_RIGHT = 30.0f;
+        
+        float posX = screenWidth_ - WIDTH - MARGIN_RIGHT;
+        float posY = centerY - HEIGHT * 0.5f;
+        
+        altimeter_.setPosition(glm::vec2(posX, posY));
+        altimeter_.setSize(glm::vec2(WIDTH, HEIGHT));
+    }
     
-    float posX = screenWidth_ - altimeterWidth - marginRight;
-    float posY = centerY - altimeterHeight * 0.5f;
+    // ------------------------------------------------------------------------
+    // TODO: ATTITUDE INDICATOR (Horizonte Artificial) - CENTRO
+    // ------------------------------------------------------------------------
+    // {
+    //     const float SIZE = 300.0f;  // Cuadrado
+    //     float posX = centerX - SIZE * 0.5f;
+    //     float posY = centerY - SIZE * 0.5f;
+    //     
+    //     attitudeIndicator_.setPosition(glm::vec2(posX, posY));
+    //     attitudeIndicator_.setSize(glm::vec2(SIZE, SIZE));
+    // }
     
-    altimeter_.setPosition(glm::vec2(posX, posY));
-    altimeter_.setSize(glm::vec2(altimeterWidth, altimeterHeight));
+    // ------------------------------------------------------------------------
+    // TODO: AIRSPEED INDICATOR (Velocidad) - IZQUIERDA
+    // ------------------------------------------------------------------------
+    // {
+    //     const float WIDTH = 120.0f;
+    //     const float HEIGHT = 450.0f;
+    //     const float MARGIN_LEFT = 30.0f;
+    //     
+    //     float posX = MARGIN_LEFT;
+    //     float posY = centerY - HEIGHT * 0.5f;
+    //     
+    //     airspeedIndicator_.setPosition(glm::vec2(posX, posY));
+    //     airspeedIndicator_.setSize(glm::vec2(WIDTH, HEIGHT));
+    // }
+    
+    // ------------------------------------------------------------------------
+    // TODO: HEADING INDICATOR (Rumbo) - ARRIBA/CENTRO
+    // ------------------------------------------------------------------------
+    // {
+    //     const float WIDTH = 400.0f;
+    //     const float HEIGHT = 60.0f;
+    //     const float MARGIN_TOP = 30.0f;
+    //     
+    //     float posX = centerX - WIDTH * 0.5f;
+    //     float posY = MARGIN_TOP;
+    //     
+    //     headingIndicator_.setPosition(glm::vec2(posX, posY));
+    //     headingIndicator_.setSize(glm::vec2(WIDTH, HEIGHT));
+    // }
 }
 
 } // namespace hud

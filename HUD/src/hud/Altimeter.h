@@ -18,20 +18,11 @@ private:
     glm::vec2 position_;
     glm::vec2 size_;
     
-    // Para el indicador de tendencia
-    float lastAltitude_;
-    
     // Colores
     static const glm::vec4 HUD_GREEN;
     static const glm::vec4 HUD_WHITE;
     static const glm::vec4 HUD_YELLOW;
     static const glm::vec4 BACKGROUND_COLOR;
-    
-    // Configuración de escala
-    static const float MIN_ALTITUDE;
-    static const float MAX_ALTITUDE;
-    static const float MAJOR_TICK_INTERVAL;
-    static const float MINOR_TICK_INTERVAL;
     
     void drawBackground(gfx::Renderer2D& renderer);
     void drawAltitudeTape(gfx::Renderer2D& renderer, float altitude);

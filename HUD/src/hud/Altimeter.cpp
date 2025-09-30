@@ -10,15 +10,8 @@ const glm::vec4 Altimeter::HUD_WHITE = glm::vec4(0.0f, 1.0f, 0.4f, 0.95f);  // T
 const glm::vec4 Altimeter::HUD_YELLOW = glm::vec4(0.0f, 1.0f, 0.4f, 0.95f); // También verde
 const glm::vec4 Altimeter::BACKGROUND_COLOR = glm::vec4(0.0f, 0.0f, 0.0f, 0.0f); // Transparente
 
-// Configuración de escala profesional - ESTABLE
-const float Altimeter::MIN_ALTITUDE = -1000.0f;
-const float Altimeter::MAX_ALTITUDE = 50000.0f;
-const float Altimeter::MAJOR_TICK_INTERVAL = 200.0f;  // Etiquetas cada 200 pies
-const float Altimeter::MINOR_TICK_INTERVAL = 100.0f;  // Marcas cada 100 pies
-
 // Layout del altímetro (constantes en píxeles de pantalla)
 static const float PX_PER_100FT = 24.0f;     // píxeles entre marcas de 100 ft
-static const float TICK_MINOR = 8.0f;         // largo tick menor
 static const float TICK_MAJOR = 16.0f;        // largo tick mayor  
 static const float LABEL_PAD = 6.0f;          // separación tick→texto
 static const float BOX_W = 120.0f;            // ancho ventana de lectura
@@ -26,23 +19,7 @@ static const float BOX_H = 44.0f;             // alto ventana de lectura
 static const float CHEVRON_W = 10.0f;         // ancho chevron
 static const float CHEVRON_H = 12.0f;         // alto chevron
 
-// Helper: formato de etiqueta "38 000"
-static std::string formatTapeLabel(int v) {
-    int thousands = v / 1000;
-    int hundreds  = (v % 1000);
-    char buf[16];
-    snprintf(buf, sizeof(buf), "%d %03d", thousands, hundreds);
-    return std::string(buf);
-}
-
-// Helper: formato centenas "000", "100", ..., "900"
-static std::string h3(int v) {
-    char buf[8];
-    snprintf(buf, sizeof(buf), "%03d", v);
-    return std::string(buf);
-}
-
-Altimeter::Altimeter() : position_(0.0f), size_(100.0f, 400.0f), lastAltitude_(0.0f) {
+Altimeter::Altimeter() : position_(0.0f), size_(100.0f, 400.0f) {
 }
 
 void Altimeter::render(gfx::Renderer2D& renderer, const flight::FlightData& flightData) {
@@ -86,7 +63,6 @@ void Altimeter::drawAltitudeNumber(gfx::Renderer2D& renderer, int altitude, cons
 
 void Altimeter::drawDigit7Segment(gfx::Renderer2D& renderer, char digit, const glm::vec2& pos, float w, float h, float thickness) {
     // Posiciones de los 7 segmentos
-    float halfW = w * 0.5f;
     float halfH = h * 0.5f;
     
     // Definir qué segmentos están activos para cada dígito
@@ -139,11 +115,13 @@ void Altimeter::drawAltitudeTape(gfx::Renderer2D& renderer, float altitude) {
         int v = (int)base + i * 100;  // Valor en ft (cada 100)
         float y = centerY + yOff - i * PX_PER_100FT;  // INVERTIDO: valores mayores ARRIBA (y menor)
         
-        // Culling con margen + evitar dibujar sobre el box
+        // Culling: fuera de viewport
         float cy = position_.y + size_.y * 0.5f;
         if (y < position_.y - 30.0f || y > position_.y + size_.y + 30.0f) continue;
-        // Solo skip si está MUY cerca del centro del box (zona más pequeña)
-        if (y > cy - BOX_H*0.35f && y < cy + BOX_H*0.35f) continue;
+        
+        // Ocultar números que están dentro del box (área del cuadro digital)
+        // BOX_H = 44px, así que ocultamos en rango ±22px desde el centro
+        if (y > cy - BOX_H*0.5f && y < cy + BOX_H*0.5f) continue;
         
         // Pixel snapping: alinear a media-píxel para nitidez
         y = floor(y) + 0.5f;
@@ -200,9 +178,6 @@ void Altimeter::drawCurrentAltitudeBox(gfx::Renderer2D& renderer, float altitude
     // Dibujar el número completo centrado en el box
     glm::vec2 numPos = glm::vec2(boxX + BOX_W * 0.5f, cy);
     drawAltitudeNumber(renderer, a, numPos);
-    
-    // Actualizar last altitude
-    lastAltitude_ = altitude;
 }
 
 void Altimeter::drawAltitudeBug(gfx::Renderer2D& renderer, float targetAltitude) {

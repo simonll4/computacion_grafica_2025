@@ -1,221 +1,207 @@
-# Flight Simulator HUD - OpenGL
+# Flight Simulator HUD - OpenGL 3.3
 
-Un simulador de vuelo completo con HUD (Head-Up Display) usando OpenGL 3.3 Core Profile. Combina un skybox inmersivo con instrumentos de vuelo realistas que responden al movimiento de la cámara.
+Sistema profesional de simulador de vuelo con HUD (Heads-Up Display) y terreno realista.
 
-## Características
+## 🎯 Características Principales
 
-### Sistema de Vuelo
-- **Simulación de vuelo realista** - Datos de vuelo calculados desde movimiento de cámara
-- **Física básica** - Simulación de sustentación, gravedad y pérdida
-- **Controles intuitivos** - WASD para movimiento, QE para altitud, mouse para orientación
+- **HUD con Altímetro de 7 Segmentos**: Display profesional estilo aviación
+- **Terreno Realista**: Texturizado triplanar 4K con detail mapping
+- **Skybox**: Cielo envolvente con múltiples cubemaps
+- **Cámara FPS**: Control libre con mouse y teclado
+- **Física Básica**: Simulación de vuelo con colisión de terreno
+- **Optimizado**: OpenGL 3.3 Core Profile, 60+ FPS
 
-### HUD (Head-Up Display)
-- **5 Instrumentos principales** - Attitude, Airspeed, Altimeter, Heading, Vertical Speed
-- **3 Layouts configurables** - Classic, Modern, Minimal (teclas 1, 2, 3)
-- **Renderizado 2D optimizado** - Sistema de batching para máximo rendimiento
-- **Colores realistas** - Verde HUD, amarillo para alertas, rojo para peligros
-
-### Gráficos
-- **OpenGL 3.3 Core Profile** - Compatible con hardware moderno y legacy
-- **Skybox inmersivo** - Soporte múltiples formatos de atlas cubemap
-- **Arquitectura modular** - Separación clara entre 3D y 2D rendering
-- **Blending avanzado** - Transparencias correctas para overlay HUD
-
-## Estructura del Proyecto
+## 📁 Estructura del Proyecto
 
 ```
 HUD/
 ├── src/
-│   ├── main.cpp              # Aplicación principal del simulador
-│   ├── gfx/                  # Sistema gráfico
-│   │   ├── GLCheck.h         # Utilidades de error OpenGL
-│   │   ├── Shader.h/.cpp     # Clase shader modular
-│   │   ├── Renderer2D.h/.cpp # Renderizador 2D para HUD
-│   │   ├── TextureCube.h/.cpp # Manejo de texturas cubemap
-│   │   └── SkyboxRenderer.h/.cpp # Renderizador de skybox
-│   ├── hud/                  # Sistema HUD
-│   │   ├── FlightHUD.h/.cpp  # Coordinador principal del HUD
-│   │   ├── AttitudeIndicator.h/.cpp # Indicador de actitud
-│   │   ├── AirspeedIndicator.h/.cpp # Indicador de velocidad
-│   │   ├── Altimeter.h/.cpp  # Altímetro
-│   │   ├── HeadingIndicator.h/.cpp # Indicador de rumbo
-│   │   └── VerticalSpeedIndicator.h/.cpp # Velocidad vertical
-│   ├── flight/               # Sistema de vuelo
-│   │   └── FlightData.h/.cpp # Datos y física de vuelo
-│   └── util/                 # Utilidades
-│       └── ImageAtlas.h/.cpp # Procesamiento de atlas
+│   ├── main.cpp              # Punto de entrada, loop principal
+│   ├── flight/
+│   │   ├── FlightData.h/cpp  # Datos de vuelo (altitud, velocidad, etc.)
+│   ├── gfx/
+│   │   ├── Shader.h/cpp          # Sistema de shaders
+│   │   ├── Renderer2D.h/cpp      # Renderizador 2D para HUD
+│   │   ├── TerrainRenderer.h/cpp # Terreno con triplanar mapping
+│   │   ├── TerrainMesh.h/cpp     # Generación de grid NxN
+│   │   ├── SkyboxRenderer.h/cpp  # Skybox envolvente
+│   │   ├── TextureCube.h/cpp     # Cubemap loader
+│   │   └── SimpleCube.h/cpp      # Cubos de referencia
+│   ├── hud/
+│   │   ├── FlightHUD.h/cpp       # Sistema de HUD
+│   │   └── Altimeter.h/cpp       # Altímetro de 7 segmentos
+│   └── util/
+│       └── ImageAtlas.h/cpp      # Carga de atlas de texturas
 ├── shaders/
-│   ├── skybox.vert/.frag    # Shaders del skybox
-│   └── hud.vert/.frag       # Shaders del HUD 2D
-├── Cubemap/                 # Atlas de texturas del cielo
-└── include/                 # Headers externos (GLAD, stb_image)
+│   ├── terrain.vert/frag     # Shaders del terreno
+│   ├── skybox.vert/frag      # Shaders del skybox
+│   ├── hud.vert/frag         # Shaders del HUD 2D
+│   └── cube.vert/frag        # Shaders de cubos de referencia
+├── Cubemap/                  # Atlas de cubemaps para skybox
+├── forrest_ground_01_4k.blend/  # Texturas del terreno (4K)
+└── Makefile                  # Sistema de build
 ```
 
-## Compilación
+## 🚀 Compilación y Ejecución
+
+### Requisitos
+
+- **Compilador**: GCC/G++ con soporte C++17
+- **Librerías**:
+  - GLFW3 (windowing)
+  - OpenGL 3.3+
+  - GLM (matemáticas)
+  - STB Image (incluida)
+
+### Build
 
 ```bash
-make clean
-make build
+make build              # Compilar
+./build/Skybox-Demo    # Ejecutar
+make clean             # Limpiar
 ```
 
-## Ejecución
+## 🎮 Controles
 
-```bash
-make run
-# o directamente:
-./build/Skybox-Demo
-```
-
-## Controles
-
-### Vuelo
-- **W/S** - Acelerar/Desacelerar (pitch hacia adelante/atrás)
-- **A/D** - Alabeo izquierda/derecha (roll)
-- **Q/E** - Subir/Bajar altitud
-- **Mouse** - Control de pitch y yaw (cabeceo y guiñada)
-- **ESC** - Salir del simulador
+### Movimiento
+- **W/A/S/D**: Movimiento horizontal
+- **Q/E**: Subir/Bajar (con límite en el piso)
+- **Mouse**: Rotar cámara (tipo FPS)
 
 ### HUD
-- **1** - Layout Clásico (instrumentos grandes y separados)
-- **2** - Layout Moderno (compacto y eficiente)
-- **3** - Layout Mínimo (solo elementos esenciales)
+- **1**: Layout clásico
+- **2**: Layout moderno
+- **3**: Layout minimal
 
-## Detalles Técnicos
+### General
+- **ESC**: Salir
 
-### Atlas de Cubemap
+## 🏗️ Arquitectura Técnica
 
-El sistema detecta automáticamente el formato del atlas:
-- **Horizontal Cross (4x3)** - Layout estándar con cruz horizontal
-- **Vertical Cross (3x4)** - Layout con cruz vertical
-- **Row (6x1)** - 6 caras en fila horizontal
-- **Column (1x6)** - 6 caras en columna vertical
-- **Single 512x512** - Layout especial para texturas cuadradas
+### Terreno
+- **Grid**: 128x128 vértices (~98k índices)
+- **Triplanar Mapping**: Proyección en 3 ejes, sin estiramientos
+- **Detail Texture**: Capa de detalle para romper repetición
+- **Floating Origin**: Grid anclado a cámara (terreno "infinito")
+- **Texturas**: 4K con mipmaps automáticos
+- **Niebla**: Exponencial configurable
 
-### Orden de Caras OpenGL
+### Altímetro
+- **Display de 7 Segmentos**: Estilo aviación profesional
+- **Cinta Vertical**: Scroll continuo cada 100 pies
+- **Culling Inteligente**: Solo dibuja números visibles
+- **Piso de Referencia**: Y=1.8m = 0 pies de altitud
+- **Conversión**: 1 metro = 3.28084 pies
 
-Las caras se mapean en el orden estándar de OpenGL:
-1. **+X** (Right)
-2. **-X** (Left)  
-3. **+Y** (Top)
-4. **-Y** (Bottom)
-5. **+Z** (Front)
-6. **-Z** (Back)
+### Cámara
+- **Tipo**: FPS con ángulos de Euler (yaw/pitch)
+- **Límites**: Pitch ±89° (evita gimbal lock)
+- **Colisión**: No puede bajar de Y=1.8m (altura de ojos)
+- **Velocidad**: 10 m/s (configurable en kCameraSpeed)
+- **Mouse**: Sensibilidad 0.1 (configurable en kMouseSensitivity)
 
-### Instrumentos del HUD
+## ⚙️ Configuración
 
-#### 1. Attitude Indicator (Indicador de Actitud)
-- **Horizonte artificial** con cielo azul y tierra marrón
-- **Escala de pitch** cada 10° con líneas de referencia
-- **Escala de roll** de -60° a +60° en arco superior
-- **Símbolo de aeronave** fijo en el centro
+### Constantes en main.cpp
 
-#### 2. Airspeed Indicator (Indicador de Velocidad)
-- **Escala vertical** de 0 a 500 nudos
-- **Marcas principales** cada 20 nudos
-- **Caja digital** con velocidad actual
-- **Colores de alerta** para velocidades críticas
+```cpp
+// Configuración de ventana
+kWindowWidth = 1280
+kWindowHeight = 720
 
-#### 3. Altimeter (Altímetro)
-- **Escala vertical** de -1000 a 50000 pies
-- **Marcas principales** cada 500 pies
-- **Caja digital** con altitud actual
-- **Referencia de nivel del mar**
+// Configuración de cámara
+kGroundLevel = 1.8f        // Altura mínima (metros)
+kCameraSpeed = 10.0f       // Velocidad de movimiento (m/s)
+kMouseSensitivity = 0.1f   // Sensibilidad de rotación
+```
 
-#### 4. Heading Indicator (Indicador de Rumbo)
-- **Escala horizontal** de 0° a 360°
-- **Marcas principales** cada 30° (puntos cardinales)
-- **Caja digital** con rumbo actual
-- **Puntero central** fijo
+### Parámetros del Terreno
 
-#### 5. Vertical Speed Indicator (Velocidad Vertical)
-- **Escala no lineal** de -6000 a +6000 pies/min
-- **Línea de referencia** en cero (vuelo nivelado)
-- **Puntero triangular** con colores de estado
-- **Compresión de escala** para valores extremos
+```cpp
+terrainParams.groundY = 0.0f           // Nivel del piso
+terrainParams.tileScaleMacro = 0.05f   // Escala textura principal
+terrainParams.tileScaleDetail = 0.4f   // Escala textura de detalle
+terrainParams.detailStrength = 0.3f    // Mezcla de detalle (0-1)
+terrainParams.fogDensity = 0.0f        // Niebla (0 = deshabilitada)
+```
 
-### Shaders
+## 📊 Rendimiento
 
-#### Skybox (3D)
-- **Vertex Shader**: Transforma posiciones del cubo, elimina traslación
-- **Fragment Shader**: Samplea cubemap con dirección normalizada
+- **Target**: 60+ FPS en hardware moderno
+- **Vértices del terreno**: 16,641
+- **Índices**: 98,304
+- **Texturas**: 4096x4096 (albedo, roughness)
+- **Draw calls**: ~6 por frame (skybox, terreno, 4 cubos, HUD)
 
-#### HUD (2D)
-- **Vertex Shader**: Proyección ortográfica para overlay 2D
-- **Fragment Shader**: Renderizado de colores sólidos con alpha blending
+## 🎨 Assets
 
-### Optimizaciones
+### Texturas del Terreno
+- **Fuente**: Poly Haven / ambientCG
+- **Resolución**: 4K (4096x4096)
+- **Albedo**: `forrest_ground_01_diff_4k.jpg` (sRGB)
+- **Roughness**: `forrest_ground_01_rough_4k.jpg` (Linear)
 
-#### Renderizado 3D
-- **Depth Function**: `GL_LEQUAL` para skybox en el fondo
-- **View Matrix**: Sin traslación para skybox centrado
-- **Culling**: Face culling optimizado para geometría
+### Skybox
+- **25 variantes** de cielo incluidas
+- **Formato**: Atlas 2048x1536 (6 caras de 512x512)
+- **Layout**: Detección automática
 
-#### Renderizado 2D
-- **Batching**: Agrupación de primitivas para reducir draw calls
-- **Alpha Blending**: Transparencias correctas para overlay
-- **Viewport**: Coordenadas de pantalla para UI precisa
+## 🔧 Detalles de Implementación
 
-## Dependencias
+### Triplanar Mapping (terrain.frag)
+```glsl
+// Pesos de proyección con suavizado
+vec3 w = triplanarWeights(normal);  // pow(4) para eliminar seams
 
-- **GLFW** - Manejo de ventanas y input
-- **GLAD** - Carga de funciones OpenGL
-- **GLM** - Matemáticas 3D
-- **stb_image** - Carga de imágenes
+// Sample en 3 ejes
+vec3 aX = texture(uAlbedo, pos.zy * scale).rgb;
+vec3 aY = texture(uAlbedo, pos.xz * scale).rgb;
+vec3 aZ = texture(uAlbedo, pos.xy * scale).rgb;
 
-## Extensiones Futuras
+// Mezcla con pesos
+vec3 albedo = aX*w.x + aY*w.y + aZ*w.z;
+```
 
-### Sistema de Vuelo
-- **Modelo aerodinámico avanzado** - Sustentación, resistencia, efectos de viento
-- **Sistemas de aeronave** - Motor, combustible, sistemas eléctricos
-- **Navegación** - Waypoints, rutas de vuelo, ILS
-- **Condiciones meteorológicas** - Viento, turbulencias, visibilidad
+### Floating Origin
+```cpp
+// Snap de cámara cada 32 metros
+const float snapStep = 32.0f;
+glm::vec2 snap = floor(cameraPos.xz / snapStep) * snapStep;
+gridOffset = vec3(snap.x, groundY, snap.y);
+```
 
-### HUD Avanzado
-- **Renderizado de texto** - Números y etiquetas reales
-- **Instrumentos adicionales** - Turn coordinator, engine parameters
-- **Alertas y warnings** - Sistema de avisos visuales y sonoros
-- **Modos de vuelo** - Autopilot, approach modes
+### Altímetro 7-Segmentos
+```cpp
+// Segmentos: a b c d e f g
+//     aaa
+//    f   b
+//     ggg
+//    e   c
+//     ddd
 
-### Gráficos
-- **HDR Pipeline** - Soporte para cubemaps HDR (EXR/HDR)
-- **IBL (Image-Based Lighting)** - Iluminación realista basada en entorno
-- **Terrain rendering** - Terreno 3D con heightmaps
-- **Weather effects** - Nubes, lluvia, niebla
+bool segments[7] = {...};  // Configuración por dígito
+drawRect(...);             // Cada segmento = rectángulo
+```
 
-### Interfaz
-- **Menú de configuración** - Ajustes de sensibilidad, layouts
-- **Múltiples aeronaves** - Diferentes tipos de avión
-- **Replay system** - Grabación y reproducción de vuelos
-- **Multiplayer** - Vuelo compartido en red
+## 🐛 Debug
 
-## Arquitectura del Sistema
+Para habilitar logs de debug:
+1. Descomentar líneas `DEBUG` en `Altimeter.cpp`
+2. Descomentar líneas `DEBUG` en `FlightData.cpp`
+3. Recompilar: `make build`
 
-### Flujo de Renderizado
-1. **Update Phase**: Actualización de datos de vuelo desde input
-2. **3D Rendering**: Skybox con depth testing normal
-3. **2D Overlay**: HUD con alpha blending sobre 3D
-4. **Present**: Swap buffers y poll events
+## 📚 Referencias
 
-### Separación de Responsabilidades
-- **main.cpp**: Loop principal y coordinación
-- **flight/**: Lógica de simulación de vuelo
-- **gfx/**: Sistemas de renderizado (3D y 2D)
-- **hud/**: Instrumentos y layout del HUD
+- **Triplanar Mapping**: https://bgolus.medium.com/normal-mapping-for-a-triplanar-shader-10bf39dca05a
+- **Floating Origin**: https://blog.unity.com/technology/floating-origin
+- **7-Segment Display**: Estándar de aviación civil
 
-### Patrón de Diseño
-- **Component System**: Cada instrumento es independiente
-- **Observer Pattern**: HUD responde a cambios en FlightData
-- **Strategy Pattern**: Diferentes layouts intercambiables
-- **RAII**: Gestión automática de recursos OpenGL
+## 📄 Licencia
 
-## Notas de Implementación
+Proyecto educativo - Computación Gráfica 2025
 
-Este simulador combina técnicas avanzadas de OpenGL:
+## ✨ Créditos
 
-1. **Dual Rendering Pipeline** - 3D para mundo, 2D para HUD
-2. **Real-time Flight Dynamics** - Cálculo de parámetros desde cámara
-3. **Modular Architecture** - Fácil extensión y mantenimiento
-4. **Performance Optimized** - Batching 2D y minimal state changes
-5. **Aviation Accuracy** - Instrumentos basados en estándares reales
-
-La implementación está inspirada en sistemas HUD reales de aviación, adaptada para funcionar como simulador educativo y demostración técnica de OpenGL moderno.
+- **Texturas**: Poly Haven (CC0)
+- **Skybox**: Generado con herramientas de CG
+- **Implementación**: Trabajo académico original

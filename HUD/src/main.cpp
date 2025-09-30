@@ -1,3 +1,15 @@
+/**
+ * @file main.cpp
+ * @brief Simulador de vuelo con HUD (Heads-Up Display) profesional
+ * 
+ * Sistema completo de renderizado 3D con:
+ * - Terreno con texturizado triplanar y niebla
+ * - Skybox para cielo envolvente
+ * - HUD con altímetro de 7 segmentos
+ * - Sistema de cámara libre tipo FPS
+ * - Física básica de vuelo
+ */
+
 extern "C"{
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -14,139 +26,201 @@ extern "C"{
 #include "hud/FlightHUD.h"
 #include "flight/FlightData.h"
 
+// ============================================================================
+// CONSTANTES DE CONFIGURACIÓN
+// ============================================================================
+
 static const char* kWindowTitle = "Flight Simulator HUD - OpenGL";
 static const int kWindowWidth   = 1280;
 static const int kWindowHeight  = 720;
 
-// Variables globales para la cámara
-// Iniciar en el piso (altitud 0 ft = altura de ojos)
-glm::vec3 cameraPos = glm::vec3(0.0f, 1.8f, 0.0f);  // Y = 1.8m (altura de ojos, altitud 0 ft)
-glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
-glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+// Altura mínima de la cámara (1.8m = altura de ojos del piloto)
+static const float kGroundLevel = 1.8f;
 
-float yaw = -90.0f;
-float pitch = 0.0f;
+// Velocidad de movimiento de la cámara (m/s)
+static const float kCameraSpeed = 10.0f;
+
+// Sensibilidad del mouse para rotación de cámara
+static const float kMouseSensitivity = 0.1f;
+
+// ============================================================================
+// ESTADO GLOBAL DE LA CÁMARA
+// ============================================================================
+
+// Posición inicial: en el piso (Y=1.8m = altitud 0 pies)
+glm::vec3 cameraPos   = glm::vec3(0.0f, kGroundLevel, 0.0f);
+glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);  // Mirando hacia -Z
+glm::vec3 cameraUp    = glm::vec3(0.0f, 1.0f, 0.0f);   // Eje Y arriba
+
+// Ángulos de Euler para rotación de cámara
+float yaw   = -90.0f;  // Inicializado hacia -Z
+float pitch = 0.0f;    // Mirando al horizonte
+
+// Mouse state para cálculo de delta
 float lastX = kWindowWidth / 2.0f;
 float lastY = kWindowHeight / 2.0f;
 bool firstMouse = true;
 
-float deltaTime = 0.0f;
-float lastFrame = 0.0f;
+// ============================================================================
+// TIMING
+// ============================================================================
 
-// Variables del simulador de vuelo
-flight::FlightData flightData;
-hud::FlightHUD* globalHUD = nullptr;
+float deltaTime = 0.0f;  // Tiempo entre frames
+float lastFrame = 0.0f;  // Timestamp del frame anterior
+
+// ============================================================================
+// DATOS DE SIMULACIÓN
+// ============================================================================
+
+flight::FlightData flightData;       // Datos del avión (velocidad, altitud, etc.)
+hud::FlightHUD* globalHUD = nullptr; // Puntero global al HUD (para callbacks)
+
+// ============================================================================
+// DECLARACIÓN DE FUNCIONES
+// ============================================================================
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void processInput(GLFWwindow *window);
 void print_gl_version(void);
 
+// ============================================================================
+// FUNCIÓN PRINCIPAL
+// ============================================================================
+
+/**
+ * @brief Punto de entrada del programa
+ * 
+ * Inicializa todos los sistemas (ventana, OpenGL, recursos gráficos)
+ * y ejecuta el loop principal de renderizado.
+ */
 int main()
 {
+	// ------------------------------------------------------------------------
+	// 1. INICIALIZACIÓN DE GLFW Y VENTANA
+	// ------------------------------------------------------------------------
+	
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	//glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 	
-	GLFWwindow* window = glfwCreateWindow(kWindowWidth,
-					      kWindowHeight,
-					      kWindowTitle, nullptr, nullptr);
+	GLFWwindow* window = glfwCreateWindow(
+		kWindowWidth,
+		kWindowHeight,
+		kWindowTitle, 
+		nullptr, 
+		nullptr
+	);
 	
 	if (window == nullptr){
-		std::cout << "Failed to create GLFW window" << std::endl;
+		std::cerr << "Failed to create GLFW window" << std::endl;
 		glfwTerminate();
 		return -1;
 	}
 	
-	// https://stackoverflow.com/questions/48650497/glad-failing-to-initialize
 	glfwMakeContextCurrent(window);
 	
+	// ------------------------------------------------------------------------
+	// 2. INICIALIZACIÓN DE GLAD (OpenGL Function Loader)
+	// ------------------------------------------------------------------------
+	
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-		std::cout << "Failed to initialize GLAD" << std::endl;
+		std::cerr << "Failed to initialize GLAD" << std::endl;
 		return -1;
 	}
 
 	print_gl_version();
 
-	glViewport(0, 0, kWindowWidth, kWindowHeight);
+	// ------------------------------------------------------------------------
+	// 3. CONFIGURACIÓN DE OPENGL
+	// ------------------------------------------------------------------------
 	
-	// Configurar callbacks
+	glViewport(0, 0, kWindowWidth, kWindowHeight);
+	glEnable(GL_DEPTH_TEST);  // Habilitar test de profundidad para 3D
+	
+	// ------------------------------------------------------------------------
+	// 4. CONFIGURACIÓN DE CALLBACKS
+	// ------------------------------------------------------------------------
+	
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 	glfwSetCursorPosCallback(window, mouse_callback);
-	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);  // Mouse capturado
 	
-	// Habilitar depth testing
-	glEnable(GL_DEPTH_TEST);
+	// ------------------------------------------------------------------------
+	// 5. CREACIÓN DE OBJETOS DE RENDERIZADO
+	// ------------------------------------------------------------------------
 	
-	// Crear skybox
-	gfx::TextureCube cubemap;
-	gfx::SkyboxRenderer skybox;
+	gfx::TextureCube cubemap;           // Textura del skybox (6 caras)
+	gfx::SkyboxRenderer skybox;         // Renderizador del cielo
+	gfx::SimpleCube cube;               // Cubos de referencia
+	gfx::TerrainRenderer terrain;       // Renderizador del terreno
+	gfx::TerrainParams terrainParams;   // Parámetros del terreno
+	hud::FlightHUD flightHUD;           // Sistema de HUD
 	
-	// Crear cubo de referencia
-	gfx::SimpleCube cube;
+	globalHUD = &flightHUD;  // Guardar puntero global para callbacks
 	
-	// Crear terreno
-	gfx::TerrainRenderer terrain;
-	gfx::TerrainParams terrainParams;
-	
-	// Crear HUD
-	hud::FlightHUD flightHUD;
-	globalHUD = &flightHUD;
+	// ------------------------------------------------------------------------
+	// 6. INICIALIZACIÓN DE RECURSOS GRÁFICOS
+	// ------------------------------------------------------------------------
 	
 	try {
-		// Cargar el primer atlas del cubemap
+		// Skybox: cargar atlas y compilar shaders
 		if (!cubemap.loadFromAtlas("Cubemap/Cubemap_Sky_01-512x512.png", false)) {
 			std::cerr << "Failed to load cubemap atlas" << std::endl;
 			return -1;
 		}
-		
 		skybox.init();
 		skybox.setCubemap(&cubemap);
 		
-		// Inicializar cubo
+		// Cubos de referencia: crear geometría
 		cube.init();
 		
-		// Inicializar terreno
+		// Terreno: generar mesh, cargar texturas
 		terrain.init();
 		terrain.loadTextures("forrest_ground_01_4k.blend/textures");
-		terrainParams.groundY = 0.0f;
-		terrainParams.tileScaleMacro = 0.05f;   // Ajustar para que se vea bien
-		terrainParams.tileScaleDetail = 0.4f;
-		terrainParams.detailStrength = 0.3f;
-		terrainParams.fogDensity = 0.00f; // No hay niebla
 		
-		// Inicializar HUD
+		// Configurar parámetros del terreno
+		terrainParams.groundY = 0.0f;               // Nivel del piso
+		terrainParams.tileScaleMacro = 0.05f;       // Escala textura principal
+		terrainParams.tileScaleDetail = 0.4f;       // Escala textura de detalle
+		terrainParams.detailStrength = 0.3f;        // Mezcla de detalle (0-1)
+		terrainParams.fogDensity = 0.00f;           // Niebla deshabilitada
+		
+		// HUD: compilar shaders, inicializar altímetro
 		flightHUD.init(kWindowWidth, kWindowHeight);
 		flightHUD.setLayout("classic");
 		
-		std::cout << "Skybox, terrain and HUD initialized successfully!" << std::endl;
+		std::cout << "✓ All systems initialized successfully!" << std::endl;
 	}
 	catch (const std::exception& e) {
-		std::cerr << "Error initializing systems: " << e.what() << std::endl;
+		std::cerr << "✗ Error initializing systems: " << e.what() << std::endl;
 		return -1;
 	}
 	
-	while(!glfwWindowShouldClose(window)){
-		// Calcular deltaTime
+	// ------------------------------------------------------------------------
+	// 7. LOOP PRINCIPAL DE RENDERIZADO
+	// ------------------------------------------------------------------------
+	
+	while (!glfwWindowShouldClose(window)) {
+		
+		// --- Timing ---
 		float currentFrame = glfwGetTime();
 		deltaTime = currentFrame - lastFrame;
 		lastFrame = currentFrame;
 		
-		// Input
+		// --- Input ---
 		processInput(window);
 		
-		// Actualizar datos de vuelo basados en la cámara
+		// --- Actualización de lógica ---
 		flightData.updateFromCamera(cameraFront, cameraUp, cameraPos, deltaTime);
 		flightData.simulatePhysics(deltaTime);
 		
-		// Obtener tamaño actual del framebuffer
+		// --- Manejo de resize de ventana ---
 		int width, height;
 		glfwGetFramebufferSize(window, &width, &height);
 		glViewport(0, 0, width, height);
 		
-		// Actualizar HUD si cambió el tamaño de ventana
 		static int lastWidth = width, lastHeight = height;
 		if (width != lastWidth || height != lastHeight) {
 			flightHUD.setScreenSize(width, height);
@@ -154,82 +228,103 @@ int main()
 			lastHeight = height;
 		}
 		
-		// Limpiar buffers
+		// --- Limpiar buffers ---
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		
-		// Crear matrices de vista y proyección
+		// --- Matrices de cámara ---
 		glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-		glm::mat4 projection = glm::perspective(glm::radians(45.0f), 
-												(float)width / (float)height, 
-												0.1f, 1000.0f);  // Far plane más lejano para ver terreno
+		glm::mat4 projection = glm::perspective(
+			glm::radians(45.0f),
+			(float)width / (float)height,
+			0.1f,    // Near plane
+			1000.0f  // Far plane (lejano para ver terreno)
+		);
 		
-		// Renderizar skybox (3D)
+		// --- Renderizado 3D ---
 		skybox.draw(view, projection);
-		
-		// Renderizar terreno
 		terrain.draw(view, projection, cameraPos, terrainParams);
 		
-		// Renderizar cubo de referencia en varias posiciones
-		cube.draw(view, projection, glm::vec3(0.0f, 0.0f, -5.0f));  // Adelante
-		cube.draw(view, projection, glm::vec3(5.0f, 0.0f, -5.0f));  // Derecha
-		cube.draw(view, projection, glm::vec3(-5.0f, 0.0f, -5.0f)); // Izquierda
-		cube.draw(view, projection, glm::vec3(0.0f, 3.0f, -5.0f));  // Arriba
+		// Cubos de referencia (opcional, comentado para mejor rendimiento)
+		// cube.draw(view, projection, glm::vec3(0.0f, 0.0f, -5.0f));   // Adelante
+		// cube.draw(view, projection, glm::vec3(5.0f, 0.0f, -5.0f));   // Derecha
+		// cube.draw(view, projection, glm::vec3(-5.0f, 0.0f, -5.0f));  // Izquierda
+		// cube.draw(view, projection, glm::vec3(0.0f, 3.0f, -5.0f));   // Arriba
 		
-		// Actualizar y renderizar HUD (2D overlay)
+		// --- Renderizado 2D (HUD overlay) ---
 		flightHUD.update(flightData);
 		flightHUD.render();
-		// Swap buffers y poll events
+		
+		// --- Swap y eventos ---
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
 	
-	// Limpiar recursos explícitamente antes de terminar GLFW
-	std::cout << "Cleaning up resources..." << std::endl;
+	// ------------------------------------------------------------------------
+	// 8. LIMPIEZA Y CIERRE
+	// ------------------------------------------------------------------------
 	
-	// No hacer nada más, los destructores se encargan
-	// No es necesario llamar a glfwTerminate() explícitamente
-	// ya que GLFW se encarga de liberar los recursos cuando se cierra
-	// la ventana principal
+	std::cout << "Cleaning up resources..." << std::endl;
+	// Los destructores de C++ se encargan de liberar los recursos automáticamente
+	
 	return 0;
 }
 
+// ============================================================================
+// CALLBACKS
+// ============================================================================
+
+/**
+ * @brief Callback para ajustar viewport cuando se redimensiona la ventana
+ */
 void framebuffer_size_callback(GLFWwindow* window, int width, int height){
 	glViewport(0, 0, width, height);
 }
 
+/**
+ * @brief Procesa entrada de teclado para controlar la cámara y HUD
+ * 
+ * Controles:
+ * - ESC: Cerrar aplicación
+ * - W/A/S/D: Movimiento horizontal
+ * - Q/E: Subir/bajar (con límite en el piso)
+ * - 1/2/3: Cambiar layout del HUD
+ */
 void processInput(GLFWwindow *window){
-	if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+	// --- Salida ---
+	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
 		glfwSetWindowShouldClose(window, true);
-	
-	// Controles de cámara (simulación de vuelo)
-	float cameraSpeed = 10.0f * deltaTime;  // Aumentada de 2.5 a 10.0
-	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-		cameraPos += cameraSpeed * cameraFront;
-	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-		cameraPos -= cameraSpeed * cameraFront;
-	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-		cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
-	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-		cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
-	
-	// Controles de altitud
-	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
-		cameraPos += cameraSpeed * glm::vec3(0.0f, 1.0f, 0.0f); // Subir
-	if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
-		cameraPos -= cameraSpeed * glm::vec3(0.0f, 1.0f, 0.0f); // Bajar
-	
-	// Colisión con el piso (altura de ojos del piloto sobre el suelo)
-	const float GROUND_LEVEL = 1.8f;  // 1.8 metros (altura de ojos)
-	if (cameraPos.y < GROUND_LEVEL) {
-		cameraPos.y = GROUND_LEVEL;
 	}
 	
-	// Controles de HUD (con debounce simple)
+	// --- Movimiento de cámara (tipo vuelo libre) ---
+	float speed = kCameraSpeed * deltaTime;
+	glm::vec3 right = glm::normalize(glm::cross(cameraFront, cameraUp));
+	
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)  // Adelante
+		cameraPos += speed * cameraFront;
+	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)  // Atrás
+		cameraPos -= speed * cameraFront;
+	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)  // Izquierda
+		cameraPos -= speed * right;
+	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)  // Derecha
+		cameraPos += speed * right;
+	
+	// --- Controles de altitud ---
+	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)  // Subir
+		cameraPos.y += speed;
+	if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)  // Bajar
+		cameraPos.y -= speed;
+	
+	// --- Colisión con el piso ---
+	if (cameraPos.y < kGroundLevel) {
+		cameraPos.y = kGroundLevel;
+	}
+	
+	// --- Controles de HUD (con anti-rebote) ---
 	static float lastLayoutChange = 0.0f;
 	float currentTime = glfwGetTime();
 	
-	if (currentTime - lastLayoutChange > 0.5f) { // Debounce de 0.5 segundos
+	if (currentTime - lastLayoutChange > 0.5f) {
 		if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
 			if (globalHUD) globalHUD->setLayout("classic");
 			lastLayoutChange = currentTime;
@@ -248,32 +343,39 @@ void processInput(GLFWwindow *window){
 	}
 }
 
+/**
+ * @brief Callback para manejar movimiento del mouse y rotación de cámara
+ * 
+ * Implementa rotación tipo FPS usando ángulos de Euler (yaw/pitch).
+ * El pitch está limitado a ±89° para evitar gimbal lock.
+ */
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
+	// Inicialización en primer frame
 	if (firstMouse) {
 		lastX = xpos;
 		lastY = ypos;
 		firstMouse = false;
 	}
 
+	// Calcular offset del mouse
 	float xoffset = xpos - lastX;
-	float yoffset = lastY - ypos; // Invertido porque las coordenadas y van de abajo hacia arriba
+	float yoffset = lastY - ypos;  // Invertido: Y crece hacia abajo en pantalla
 	lastX = xpos;
 	lastY = ypos;
 
-	float sensitivity = 0.1f;
-	xoffset *= sensitivity;
-	yoffset *= sensitivity;
+	// Aplicar sensibilidad
+	xoffset *= kMouseSensitivity;
+	yoffset *= kMouseSensitivity;
 
-	yaw += xoffset;
+	// Actualizar ángulos de Euler
+	yaw   += xoffset;
 	pitch += yoffset;
 
-	// Limitar el pitch
-	if (pitch > 89.0f)
-		pitch = 89.0f;
-	if (pitch < -89.0f)
-		pitch = -89.0f;
+	// Limitar pitch para evitar flip vertical (gimbal lock)
+	if (pitch >  89.0f) pitch =  89.0f;
+	if (pitch < -89.0f) pitch = -89.0f;
 
-	// Calcular nueva dirección de la cámara
+	// Calcular vector dirección usando ángulos de Euler
 	glm::vec3 direction;
 	direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
 	direction.y = sin(glm::radians(pitch));
@@ -281,11 +383,13 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
 	cameraFront = glm::normalize(direction);
 }
 
+/**
+ * @brief Imprime información de OpenGL (renderer, versión)
+ */
 void print_gl_version(void){
-    // get version info
-     const GLubyte* renderer = glGetString(GL_RENDERER);    // get renderer string
-     const GLubyte* version = glGetString(GL_VERSION);      // version as a string
+	const GLubyte* renderer = glGetString(GL_RENDERER);
+	const GLubyte* version = glGetString(GL_VERSION);
 
-     std::cout << "Renderer: " << renderer << std::endl;
-     std::cout << "OpenGL version supported " << version << std::endl;
+	std::cout << "Renderer: " << renderer << std::endl;
+	std::cout << "OpenGL version supported: " << version << std::endl;
 }
