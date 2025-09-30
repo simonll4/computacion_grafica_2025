@@ -20,7 +20,6 @@
 // - Bresenham del TP1: por consigna, NO dibuja horizontales (y0==y1) ni verticales (x0==x1).
 // - comparacion.txt: tabla de puntos de la recta original (índice, (x,y) Bresenham vs DDA, igualdad/≠).
 
-
 #include "../common/image_ppm.h"
 #include <algorithm>
 #include <climits>
@@ -178,21 +177,27 @@ void writeComparisonTable(const std::vector<Pt> &bres,
 
         // Formateo con ancho fijo para alineación correcta
         f << std::setw(3) << i << " | ";
-        
+
         // Columna Bresenham con ancho fijo de 18 caracteres
-        if (hb) {
+        if (hb)
+        {
             std::string bresStr = "(" + std::to_string(bx) + "," + std::to_string(by) + ")";
             f << std::setw(18) << bresStr;
-        } else {
+        }
+        else
+        {
             f << std::setw(18) << "(—)";
         }
         f << " | ";
-        
+
         // Columna DDA con ancho fijo de 15 caracteres
-        if (hd) {
+        if (hd)
+        {
             std::string ddaStr = "(" + std::to_string(dx) + "," + std::to_string(dy) + ")";
             f << std::setw(15) << ddaStr;
-        } else {
+        }
+        else
+        {
             f << std::setw(15) << "(—)";
         }
         f << " | " << (diff ? "≠" : "==") << "\n";
