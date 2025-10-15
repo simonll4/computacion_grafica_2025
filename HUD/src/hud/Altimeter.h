@@ -29,8 +29,7 @@ namespace hud
         void drawBackground(gfx::Renderer2D &renderer);
         void drawAltitudeTape(gfx::Renderer2D &renderer, float altitude);
         void drawCurrentAltitudeBox(gfx::Renderer2D &renderer, float altitude);
-        void drawAltitudeNumber(gfx::Renderer2D &renderer, int altitude, const glm::vec2 &position);
-        void drawDigit7Segment(gfx::Renderer2D &renderer, char digit, const glm::vec2 &pos, float w, float h, float thickness);
     };
+
 
 } // namespace hud

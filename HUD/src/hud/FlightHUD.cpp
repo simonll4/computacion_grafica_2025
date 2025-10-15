@@ -53,16 +53,17 @@ namespace hud
         // CREAR E INICIALIZAR INSTRUMENTOS
         // Los instrumentos se crean como unique_ptr y se almacenan en el vector
         // También guardamos referencias raw para acceso directo
-        
-        // Altimeter (Derecha)
+
+        // Altimeter
         auto altimeter = std::make_unique<Altimeter>();
         altimeter_ = altimeter.get();
         instruments_.push_back(std::move(altimeter));
 
-        // SpeedIndicator (Izquierda)
-        auto speedIndicator = std::make_unique<SpeedIndicator>();
-        speedIndicator_ = speedIndicator.get();
-        instruments_.push_back(std::move(speedIndicator));
+        // SpeedIndicator
+        // TODO
+        // auto speedIndicator = std::make_unique<SpeedIndicator>();
+        // speedIndicator_ = speedIndicator.get();
+        // instruments_.push_back(std::move(speedIndicator));
 
         // TODO: Agregar nuevos instrumentos aquí siguiendo el mismo patrón:
         // auto attitudeIndicator = std::make_unique<AttitudeIndicator>();
@@ -159,8 +160,8 @@ namespace hud
         // ========================================================================
         // RENDERIZAR TODOS LOS INSTRUMENTOS POLIMÓRFICAMENTE
         // ========================================================================
-        
-        for (const auto& instrument : instruments_)
+
+        for (const auto &instrument : instruments_)
         {
             if (instrument && instrument->isEnabled())
             {

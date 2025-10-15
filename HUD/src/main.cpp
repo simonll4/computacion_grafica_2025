@@ -253,7 +253,7 @@ int main()
 		terrain.draw(view, projection, cameraPos, terrainParams);
 
 		// Cubo de referencia
-		cube.draw(view, projection, glm::vec3(0.0f, 0.0f, 5.0f)); // Adelante
+		cube.draw(view, projection, glm::vec3(0.0f, 0.0f, 5.0f));
 
 		// --- Renderizado 2D (HUD overlay) ---
 		flightHUD.update(flightData);
