@@ -38,6 +38,13 @@ void Shader::setInt(const char* name, int v) const {
     }
 }
 
+void Shader::setBool(const char* name, bool v) const {
+    GLint location = glGetUniformLocation(prog_, name);
+    if (location != -1) {
+        glUniform1i(location, v ? 1 : 0);
+    }
+}
+
 void Shader::setFloat(const char* name, float v) const {
     GLint location = glGetUniformLocation(prog_, name);
     if (location != -1) {

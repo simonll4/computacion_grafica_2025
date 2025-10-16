@@ -60,10 +60,9 @@ namespace hud
         instruments_.push_back(std::move(altimeter));
 
         // SpeedIndicator
-        // TODO
-        // auto speedIndicator = std::make_unique<SpeedIndicator>();
-        // speedIndicator_ = speedIndicator.get();
-        // instruments_.push_back(std::move(speedIndicator));
+        auto speedIndicator = std::make_unique<SpeedIndicator>();
+        speedIndicator_ = speedIndicator.get();
+        instruments_.push_back(std::move(speedIndicator));
 
         // TODO: Agregar nuevos instrumentos aquí siguiendo el mismo patrón:
         // auto attitudeIndicator = std::make_unique<AttitudeIndicator>();

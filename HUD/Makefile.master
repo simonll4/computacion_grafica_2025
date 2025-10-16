@@ -10,7 +10,7 @@ USERCPPFLAGS ?= -O2 -Wall
 
 CXXFLAGS = -std=c++17
 CPPFLAGS = $(USERCPPFLAGS) $(INC_FLAGS)
-LDFLAGS = -lglfw -lGL -lX11 -lpthread -lXrandr -ldl -lstdc++ -lm
+LDFLAGS = -lglfw -lGL -lX11 -lpthread -lXrandr -ldl -lstdc++ -lm -lassimp
 
 PROJECT_NAME ?= OpenGLApp
 MAIN_CXX ?= main

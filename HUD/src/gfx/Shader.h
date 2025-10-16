@@ -41,6 +41,7 @@ public:
     // Setters para uniformes
     void setMat4(const char* name, const glm::mat4& m) const;
     void setInt(const char* name, int v) const;
+    void setBool(const char* name, bool v) const;
     void setFloat(const char* name, float v) const;
     void setVec3(const char* name, const glm::vec3& v) const;
 

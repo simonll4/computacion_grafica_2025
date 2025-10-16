@@ -1,6 +1,7 @@
 INC_DIRS = \
     ./src \
-    ./include
+    ./include \
+    /usr/include
 
 LIB_DIRS = \
     ./include
