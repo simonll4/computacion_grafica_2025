@@ -1,14 +1,16 @@
 // -----------------------------------------------------------------------------
 //  Archivo: scene.cpp
-//  Descripción general:
-//  - Consigna Requisito 3 (modelo local): ambiente + difusa + especular (Phong)
-//  - Consigna Requisito 4: sombras (4a), reflexión (4b) y refracción (4c)
-//  - Consigna Requisito 5: control de profundidad (maxDepth) y color de fondo
+//  Descripción: Implementación del trazado de rayos recursivo (Scene::traceRay).
+//  Este es el corazón del raytracer: determina el color final de un rayo
+//  combinando iluminación local (Phong) y contribuciones globales (reflexión/
+//  refracción) según el material del objeto intersectado.
 //
-//  La lógica específica de cada material vive en
-//  `rt/scene/material_shading.hpp`; este archivo queda centrado en el flujo
-//  general del trazado: color de fondo, iluminación local y contribución global.
-//
+//  Algoritmo:
+//   1. Verifica profundidad recursiva (evita stack overflow)
+//   2. Busca intersección más cercana con objetos de la escena
+//   3. Si no hay hit: retorna color de fondo (gradiente cielo)
+//   4. Si hay hit: calcula iluminación local + contribución global recursiva
+// -----------------------------------------------------------------------------
 
 #include <algorithm>
 #include <cmath>
@@ -18,35 +20,44 @@
 #include "rt/scene/material_shading.hpp"
 #include "rt/core/vec3.hpp"
 
-// Calcula el color obtenido al lanzar un rayo en la escena. Flujo general:
-// 1) Si se agotó la profundidad, cortar (negro)
-// 2) Si no hay intersección, devolver color de fondo (gradiente)
-// 3) En el primer impacto: sumar iluminación local (ambiente + difusa + especular)
-// 4) Según el material, sumar contribución global (reflexión y/o refracción)
-// 5) Devolver suma de local + global
-// Nota: los rayos secundarios usan un pequeño desplazamiento (1e-4) para
-// evitar auto-intersecciones por errores numéricos (acné).
+/// Traza un rayo en la escena y retorna el color resultante.
+/// @param ray Rayo a trazar (primario o secundario)
+/// @param depth Profundidad recursiva restante (evita bucles infinitos)
+/// @return Color RGB acumulado por este rayo
 Vec3 Scene::traceRay(const Ray &ray, int depth) const
 {
-    if (depth <= 0) // Consigna - Req. 5: límite de rebotes recursivos
+    // Caso base: si alcanzamos la profundidad máxima, no aportamos más luz
+    // Esto previene recursión infinita en escenas con múltiples reflexiones
+    if (depth <= 0)
     {
-        // Se alcanzó el máximo permitido de rebotes: devuelve negro.
-        return Vec3(0, 0, 0);
+        return Vec3(0, 0, 0); // Negro (sin contribución)
     }
 
+    // Busca la intersección más cercana del rayo con todos los objetos
+    // El rango [1e-4, ∞) evita auto-intersecciones por error numérico
     HitRecord rec{};
     if (!intersect(ray, 1e-4, std::numeric_limits<double>::infinity(), rec))
     {
-        // Consigna - Req. 5: color de fondo.
-        // Sin intersección: usa gradiente vertical (blanco→backgroundColour).
+        // No hay intersección: retorna color de fondo (gradiente cielo)
+        // Interpola linealmente entre blanco (abajo) y backgroundColour (arriba)
+        // basándose en la componente Y de la dirección normalizada del rayo
         Vec3 unitDir = normalized(ray.direction);
-        double t = 0.5 * (unitDir.y + 1.0);
-        // Mezcla lineal entre blanco y el color configurado en la escena.
+        double t = 0.5 * (unitDir.y + 1.0); // Mapea [-1,1] a [0,1]
         return (1.0 - t) * Vec3(1.0, 1.0, 1.0) + t * backgroundColour;
     }
 
-    // Iluminación local (Phong) + contribución global según el material.
+    // Hay intersección: calcula iluminación en el punto de impacto
+    
+    // Componente LOCAL: iluminación directa de las luces (modelo Phong)
+    // Incluye: ambiente + difuso + especular, con test de sombras
     Vec3 localColour = shading::computeLocalLighting(*this, rec, ray);
+    
+    // Componente GLOBAL: reflexiones/refracciones recursivas según material
+    // - Difuso: no aporta (retorna negro)
+    // - Metal: reflexión especular con posible rugosidad (fuzz)
+    // - Dieléctrico: mezcla reflexión y refracción según Fresnel
     Vec3 globalColour = shading::computeGlobalContribution(*this, rec, ray, depth);
+    
+    // Color final = iluminación local + contribución global
     return localColour + globalColour;
 }

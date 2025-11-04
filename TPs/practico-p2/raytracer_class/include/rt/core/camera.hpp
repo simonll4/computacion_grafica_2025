@@ -60,11 +60,19 @@ public:
         lowerLeftCorner = origin - horizontal * 0.5 - vertical * 0.5 - w;
     }
 
+    /// Genera un rayo primario desde la cámara hacia coordenadas (s,t) del viewport.
+    /// @param s Coordenada horizontal normalizada [0,1]: 0=izquierda, 1=derecha
+    /// @param t Coordenada vertical normalizada [0,1]: 0=abajo, 1=arriba
+    /// @return Rayo con origen en la cámara y dirección normalizada hacia (s,t)
     Ray getRay(double s, double t) const
     {
-        // Interpola el punto dentro del viewport y apunta desde el origen.
+        // Interpola el punto dentro del viewport usando coordenadas baricéntricas:
+        // P(s,t) = lowerLeftCorner + s·horizontal + t·vertical
+        // Esto mapea [0,1]×[0,1] al rectángulo del viewport en espacio 3D
         Vec3 dir = lowerLeftCorner + s * horizontal + t * vertical - origin;
-        // Se normaliza para mantener longitudes de dirección coherentes.
+        
+        // Normaliza la dirección para mantener consistencia en cálculos de iluminación
+        // (algunas fórmulas asumen dirección unitaria)
         return Ray(origin, normalized(dir));
     }
 };
