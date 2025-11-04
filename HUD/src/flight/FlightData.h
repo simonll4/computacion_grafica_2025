@@ -7,7 +7,7 @@ namespace flight
 {
 
     /**
-     * FlightData: datos que el HUD necesita para “instrumentos”
+     * FlightData: datos que el HUD necesita para "instrumentos"
      *
      * Convenciones de unidades:
      * - Ángulos: grados.
@@ -17,7 +17,7 @@ namespace flight
      * Vocabulario llano:
      * - pitch (cabeceo): levantar/bajar la nariz (−90°..+90°).
      * - roll (alabeo): inclinar las alas (−180°..+180°, derecha positivo).
-     * - heading (rumbo): hacia dónde “apunta” en planta (0° = norte, mirando −Z).
+     * - heading (rumbo): hacia dónde "apunta" en planta (0° = norte, mirando −Z).
      * - yaw (guiñada): giro sobre vertical. Aquí asumimos sin derrape → yaw = heading.
      */
     struct FlightData
@@ -36,6 +36,12 @@ namespace flight
         // Estado en mundo (m / m/s)
         glm::vec3 position = glm::vec3(0.0f, 304.8f, 0.0f); // ≈ 1000 ft
         glm::vec3 velocity = glm::vec3(0.0f);
+
+        // Navegación por waypoints
+        glm::vec3 targetWaypoint = glm::vec3(0.0f, 0.0f, 0.0f); // Posición del siguiente waypoint (m)
+        bool hasActiveWaypoint = false;                          // ¿Hay un waypoint activo?
+        float waypointDistance = 0.0f;                           // Distancia al waypoint (m)
+        float waypointBearing = 0.0f;                            // Rumbo al waypoint (0..360°)
 
         // Base de cámara ortonormal (derivada)
         glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);

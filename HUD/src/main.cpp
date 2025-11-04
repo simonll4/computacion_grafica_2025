@@ -29,6 +29,7 @@ extern "C"
 #include "gfx/TerrainRenderer.h"
 #include "gfx/Shader.h"
 #include "gfx/Model.h"
+#include "gfx/WaypointRenderer.h"
 #include "hud/FlightHUD.h"
 #include "flight/FlightData.h"
 
@@ -73,12 +74,28 @@ flight::FlightData flightData;		 // Datos del avión (velocidad, altitud, etc.)
 hud::FlightHUD *globalHUD = nullptr; // Puntero global al HUD (para callbacks)
 
 // ============================================================================
+// SISTEMA DE WAYPOINTS
+// ============================================================================
+
+struct Waypoint
+{
+	glm::vec3 position;
+	std::string name;
+};
+
+std::vector<Waypoint> waypoints; // Lista de waypoints del circuito
+int currentWaypointIndex = 0;	  // Índice del waypoint activo
+bool waypointsActive = true;	  // Sistema de navegación activo
+
+// ============================================================================
 // DECLARACIÓN DE FUNCIONES
 // ============================================================================
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 void processInput(GLFWwindow *window);
 void print_gl_version(void);
+void updateWaypointData();
+void initializeWaypoints();
 
 // ============================================================================
 // FUNCIÓN PRINCIPAL
@@ -147,6 +164,7 @@ int main()
 	hud::FlightHUD flightHUD;		  // Sistema de HUD
 	gfx::Shader modelShader("shaders/model.vert", "shaders/model.frag");
 	Model f16Model("models/f16.glb");
+	gfx::WaypointRenderer waypointRenderer; // Renderizador de waypoints
 
 	globalHUD = &flightHUD; // Guardar puntero global para callbacks
 
@@ -179,6 +197,12 @@ int main()
 		// HUD: compilar shaders, inicializar altímetro
 		flightHUD.init(kWindowWidth, kWindowHeight);
 		flightHUD.setLayout("classic");
+
+		// Waypoint renderer: para visualización 3D de waypoints
+		waypointRenderer.init();
+
+		// Inicializar sistema de waypoints
+		initializeWaypoints();
 
 		std::cout << "✓ All systems initialized successfully!" << std::endl;
 	}
@@ -214,6 +238,10 @@ int main()
 		flightData.pitch = -glm::degrees(euler.x);
 		flightData.roll = glm::degrees(euler.z);
 		flightData.heading = glm::degrees(euler.y);
+		flightData.position = planePos;
+
+		// Actualizar datos de navegación por waypoints
+		updateWaypointData();
 
 		// --- Manejo de resize de ventana ---
 		int width, height;
@@ -308,6 +336,25 @@ int main()
 		modelShader.setMat4("model", model);
 
 		f16Model.Draw(modelShader);
+
+		// --- Renderizado de waypoints 3D ---
+		if (waypointsActive && !waypoints.empty())
+		{
+			// Habilitar blending para transparencia
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+			for (size_t i = 0; i < waypoints.size(); ++i)
+			{
+				bool isActive = (i == currentWaypointIndex);
+				glm::vec4 color = isActive ? glm::vec4(0.0f, 1.0f, 0.4f, 0.8f)	 // Verde brillante (activo)
+											: glm::vec4(0.2f, 0.5f, 1.0f, 0.6f); // Azul tenue (inactivo)
+
+				waypointRenderer.drawWaypoint(view, projection, waypoints[i].position, color, isActive);
+			}
+
+			glDisable(GL_BLEND);
+		}
 
 		// --- Renderizado 2D (HUD overlay) ---
 		// Solo mostrar HUD en primera persona (POV)
@@ -411,6 +458,39 @@ void processInput(GLFWwindow *window)
 		// Movement is always active when SPACE is held
 		// The plane moves in the direction it's pointing
 	}
+
+	// Waypoint Navigation Controls
+	// N - Toggle waypoint navigation on/off
+	static bool nKeyWasPressed = false;
+	if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS)
+	{
+		if (!nKeyWasPressed)
+		{
+			waypointsActive = !waypointsActive;
+			std::cout << (waypointsActive ? "✓ Waypoint navigation ENABLED" : "✗ Waypoint navigation DISABLED") << std::endl;
+			nKeyWasPressed = true;
+		}
+	}
+	else
+	{
+		nKeyWasPressed = false;
+	}
+
+	// M - Next waypoint
+	static bool mKeyWasPressed = false;
+	if (glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS)
+	{
+		if (!mKeyWasPressed && !waypoints.empty())
+		{
+			currentWaypointIndex = (currentWaypointIndex + 1) % waypoints.size();
+			std::cout << "→ Next waypoint: " << waypoints[currentWaypointIndex].name << std::endl;
+			mKeyWasPressed = true;
+		}
+	}
+	else
+	{
+		mKeyWasPressed = false;
+	}
 }
 
 void print_gl_version(void)
@@ -420,4 +500,74 @@ void print_gl_version(void)
 
 	std::cout << "Renderer: " << renderer << std::endl;
 	std::cout << "OpenGL version supported: " << version << std::endl;
+}
+
+// ============================================================================
+// FUNCIONES DE WAYPOINTS
+// ============================================================================
+
+void initializeWaypoints()
+{
+	// Crear un circuito de ejemplo con varios waypoints
+	waypoints.clear();
+
+	// Circuito cuadrado de ejemplo (puede ser personalizado)
+	waypoints.push_back({glm::vec3(500.0f, 100.0f, 0.0f), "WPT-1"});
+	waypoints.push_back({glm::vec3(500.0f, 100.0f, -500.0f), "WPT-2"});
+	waypoints.push_back({glm::vec3(0.0f, 150.0f, -500.0f), "WPT-3"});
+	waypoints.push_back({glm::vec3(-500.0f, 100.0f, -500.0f), "WPT-4"});
+	waypoints.push_back({glm::vec3(-500.0f, 100.0f, 0.0f), "WPT-5"});
+	waypoints.push_back({glm::vec3(0.0f, 100.0f, 0.0f), "HOME"});
+
+	currentWaypointIndex = 0;
+	waypointsActive = true;
+
+	std::cout << "✓ Waypoint navigation initialized with " << waypoints.size() << " waypoints" << std::endl;
+}
+
+void updateWaypointData()
+{
+	if (!waypointsActive || waypoints.empty())
+	{
+		flightData.hasActiveWaypoint = false;
+		return;
+	}
+
+	// Obtener waypoint actual
+	Waypoint &currentWP = waypoints[currentWaypointIndex];
+	flightData.targetWaypoint = currentWP.position;
+	flightData.hasActiveWaypoint = true;
+
+	// Calcular vector hacia el waypoint
+	glm::vec3 toWaypoint = currentWP.position - planePos;
+	float distance = glm::length(toWaypoint);
+	flightData.waypointDistance = distance;
+
+	// Calcular bearing (rumbo) hacia el waypoint
+	// Proyectar en el plano horizontal (XZ)
+	glm::vec2 toWaypointXZ = glm::vec2(toWaypoint.x, toWaypoint.z);
+	
+	if (glm::length(toWaypointXZ) > 0.1f)
+	{
+		// Normalizar
+		toWaypointXZ = glm::normalize(toWaypointXZ);
+		
+		// Calcular ángulo (0° = norte = -Z, sentido horario)
+		// En OpenGL: -Z es adelante, +X es derecha
+		float bearing = glm::degrees(atan2f(toWaypointXZ.x, -toWaypointXZ.y));
+		
+		// Normalizar a rango [0, 360)
+		if (bearing < 0.0f)
+			bearing += 360.0f;
+		
+		flightData.waypointBearing = bearing;
+	}
+
+	// Avanzar al siguiente waypoint si estamos lo suficientemente cerca
+	const float WAYPOINT_CAPTURE_RADIUS = 50.0f; // metros
+	if (distance < WAYPOINT_CAPTURE_RADIUS)
+	{
+		std::cout << "✓ Reached waypoint: " << currentWP.name << std::endl;
+		currentWaypointIndex = (currentWaypointIndex + 1) % waypoints.size();
+	}
 }

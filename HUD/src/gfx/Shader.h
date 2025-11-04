@@ -35,6 +35,7 @@ public:
     }
 
     void load(const char* vsPath, const char* fsPath);
+    void loadFromSource(const std::string& vsSource, const std::string& fsSource);
     void use() const { glUseProgram(prog_); }
     GLuint id() const { return prog_; }
 
@@ -44,6 +45,7 @@ public:
     void setBool(const char* name, bool v) const;
     void setFloat(const char* name, float v) const;
     void setVec3(const char* name, const glm::vec3& v) const;
+    void setVec4(const char* name, const glm::vec4& v) const;
 
 private:
     GLuint prog_ = 0;

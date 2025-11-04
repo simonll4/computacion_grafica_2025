@@ -24,6 +24,23 @@ void Shader::load(const char* vsPath, const char* fsPath) {
     glDeleteShader(fragment);
 }
 
+void Shader::loadFromSource(const std::string& vsSource, const std::string& fsSource) {
+    // Compilar shaders directamente desde strings
+    GLuint vertex = compileShader(vsSource, GL_VERTEX_SHADER);
+    GLuint fragment = compileShader(fsSource, GL_FRAGMENT_SHADER);
+
+    // Crear programa
+    prog_ = glCreateProgram();
+    glAttachShader(prog_, vertex);
+    glAttachShader(prog_, fragment);
+    glLinkProgram(prog_);
+    checkCompileErrors(prog_, "PROGRAM");
+
+    // Limpiar shaders (ya están linkeados al programa)
+    glDeleteShader(vertex);
+    glDeleteShader(fragment);
+}
+
 void Shader::setMat4(const char* name, const glm::mat4& m) const {
     GLint location = glGetUniformLocation(prog_, name);
     if (location != -1) {
@@ -56,6 +73,13 @@ void Shader::setVec3(const char* name, const glm::vec3& v) const {
     GLint location = glGetUniformLocation(prog_, name);
     if (location != -1) {
         glUniform3fv(location, 1, glm::value_ptr(v));
+    }
+}
+
+void Shader::setVec4(const char* name, const glm::vec4& v) const {
+    GLint location = glGetUniformLocation(prog_, name);
+    if (location != -1) {
+        glUniform4fv(location, 1, glm::value_ptr(v));
     }
 }
 

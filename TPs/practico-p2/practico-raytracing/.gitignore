@@ -1,0 +1,16 @@
+# Compilados
+raytracer
+*.o
+build/
+
+# Resultados generados
+results/
+
+# Archivos temporales
+*~
+*.swp
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
