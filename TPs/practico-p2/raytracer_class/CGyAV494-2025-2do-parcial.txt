@@ -1,0 +1,136 @@
+COMP. GRÁFICA Y AMB. VIRTUALES (0494)
+
+03/11/2025
+
+SEGUNDO PARCIAL AÑO 2025
+
+Segundo Parcial
+Tema: Iluminación global mediante trazado de rayos recursivo (ray-tracing)
+Nombre y Apellido:
+Fecha lı́mite para la entrega: Martes 11 de Nov 2025 - 10:00 am
+Correo a donde enviar los entregables: dllorens@iua.edu.ar
+
+Objetivo
+Implementar un trazador de rayos recursivo que permita simular iluminación global básica mediante
+reflexión, refracción y sombras. El propósito es demostrar comprensión de los fundamentos del trazado
+de rayos recursivo y de los modelos de iluminación, ası́ como la capacidad de análisis y justificación
+de resultados visuales.
+Directivas
+Requisitos mı́nimos
+Los elementos y caracterı́sticas funcionales mı́nimas que debe contener el trazador de rayos son los
+siguientes:
+1. Generación de rayos primarios desde la cámara.
+2. Intersección con objetos simples: esfera y triángulo.
+3. Iluminación local (ej. modelo Phong) usando al menos una luz puntual.
+4. Iluminación global mediante rayos recursivos:
+a) Sombras
+b) Reflexión
+c) Refracción
+5. Control de profundidad recursiva y color de fondo.
+6. Al menos tres materiales distintos: difuso, especular y dieléctrico.
+Limitaciones
+Sólo se admite el uso de alguna librerı́a matemática (por ejemplo, GLM); las funcionalidades que forman
+el trazador de rayos y los modelos de iluminación deben ser implementaciones propias.
+Condiciones sobre el uso de herramientas de IA
+Se permite el uso de herramientas de asistencia para la implementación de software (ej. ChatGPT,
+Claude, Copilot, etc.) siempre que se comprenda y se pueda explicar cada parte del código entregado.
+El uso no declarado o la entrega de código sobre el cuál no se pueda dar una explicación podrán
+implicar la invalidación parcial de la evaluación.
+
+Pág. 1/3
+
+COMP. GRÁFICA Y AMB. VIRTUALES (0494)
+
+03/11/2025
+
+SEGUNDO PARCIAL AÑO 2025
+
+Escena
+Se podrá elegir entre dos opciones:
+A. Escena libre
+Diseñar una escena con una composición libre siempre que cumpla los requisitos mı́nimos del trazador
+de rayos recursivo. La misma debe incluir al menos:
+1. Tres objetos con materiales distintos (difuso, especular, dieléctrico)
+2. Un plano o fondo visible
+B. Escena base
+Una caja o plano de fondo y tres esferas con materiales diferentes:
+1. Esfera difusa (lambertiana)
+2. Esfera especular (reflexión tipo espejo)
+3. Esfera dieléctrica (refracción tipo vidrio o burbuja)
+Entregables
+Deberá enviar por correo electrónico lo siguiente:
+1. Código fuente, instrucciones de compilación e instrucciones para generar la escena
+2. Imagen/es de referencia de la escena generada/s por el código fuente entregado
+3. Informe técnico en formato PDF de respaldo de la entrega con el contenido que se detalla a
+continuación
+Contenido del Informe técnico
+1. Descripción general del proyecto: estructura del código, decisiones de diseño y problemas encontrados.
+2. Croquis o dibujos con sistema de referencia en donde se muestre la composición de la escena
+(posición y orientación de la cámara y posición de los objetos en la escena). Preferentemente 3
+vistas ortogonales de la escena (lateral, frontal y superior).
+3. Capturas de los resultados obtenidos con explicaciones de las mismas.
+4. Reflexión personal (obligatoria): este contenido del informe debe confeccionarse de manera personal y no está permitido el uso de herramientas IA (ej. ChatGPT, Claude, Copilot, etc.) para
+ayudar en su generación.
+¿Qué partes del código fueron generadas o asistidas mediante herramientas de IA?
+¿Qué mejoras, modificaciones o correcciones fueron necesarias sobre estas partes del código?
+¿Qué conceptos resultaron más difı́ciles de aplicar y por qué?
+¿Cómo verificó que la reflexión y refracción se comporten correctamente?
+
+Pág. 2/3
+
+COMP. GRÁFICA Y AMB. VIRTUALES (0494)
+
+03/11/2025
+
+SEGUNDO PARCIAL AÑO 2025
+
+Criterios de acreditación
+
+#
+1
+
+Criterio
+Implementación funcional
+
+2
+
+Exactitud del modelo de iluminación
+
+25 %
+
+3
+
+Informe técnico y reflexión
+
+25 %
+
+4
+
+Calidad visual / originalidad
+de la escena
+Estructura del código / legibilidad
+
+15 %
+
+5
+
+Ponderación
+30 %
+
+5%
+
+Pág. 3/3
+
+Descripción
+El software compila, genera una imagen
+coherente y cumple los requisitos técnicos.
+Reflejos, refracciones y sombras correctas
+de acuerdo a las limitaciones de los modelos utilizados.
+Claridad en la redacción y uso de lenguaje
+técnico, justificación de decisiones, reconocimiento del uso de IA y comprensión del
+código.
+Estética, composición y creatividad en el
+diseño.
+Organización, comentarios, buenas prácticas.
+
+

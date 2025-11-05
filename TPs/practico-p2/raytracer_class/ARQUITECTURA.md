@@ -12,16 +12,26 @@
 
 ## Visión General
 
-Este es un **raytracer (trazador de rayos)** implementado en C++17 que genera imágenes fotorrealistas mediante simulación física de luz. El programa traza rayos desde una cámara virtual hacia la escena, calculando intersecciones con objetos y simulando iluminación, reflexiones y refracciones.
+Este es un **raytracer (trazador de rayos)** implementado en C++17 que genera imágenes fotorrealistas mediante simulación física de luz. El programa traza rayos desde una cámara virtual hacia una escena con tres esferas que demuestran diferentes tipos de materiales, calculando intersecciones con objetos y simulando iluminación, reflexiones y refracciones.
+
+### Escena Implementada
+La escena base contiene:
+- **Tres esferas** con materiales distintos:
+  - Difuso (rojo mate): refleja luz difusamente sin reflexiones
+  - Metal (plateado): reflexión especular como espejo
+  - Dieléctrico (vidrio): refracción + reflexión con Fresnel
+- **Dos planos**: piso y pared de fondo con contraste tonal
+- **Una luz puntual**: posicionada para crear highlights especulares
+- **Cámara en ángulo**: para observar mejor el efecto de vidrio
 
 ### Características Principales
 - ✅ **Trazado de rayos recursivo** con profundidad configurable
-- ✅ **Antialiasing estocástico** (múltiples muestras por píxel)
-- ✅ **Tres tipos de geometría**: esferas, planos, triángulos
+- ✅ **Antialiasing estocástico** (múltiples muestras por píxel con jitter)
+- ✅ **Dos tipos de geometría**: esferas y planos
 - ✅ **Tres tipos de materiales**: difuso (mate), metálico (espejo), dieléctrico (vidrio)
 - ✅ **Iluminación Phong** con componentes ambiente, difusa y especular
 - ✅ **Sombras** mediante rayos de oclusión
-- ✅ **Reflexión especular** con rugosidad opcional
+- ✅ **Reflexión especular** con rugosidad opcional (fuzz)
 - ✅ **Refracción** con ley de Snell y Fresnel-Schlick
 - ✅ **Absorción volumétrica** (Beer-Lambert) para vidrios coloreados
 
@@ -40,8 +50,7 @@ raytracer_class/
 │   │   └── renderer.hpp     # Bucle de renderizado
 │   ├── geom/                # Primitivas geométricas
 │   │   ├── sphere.hpp       # Esfera (cuadrática)
-│   │   ├── plane.hpp        # Plano infinito
-│   │   └── triangle.hpp     # Triángulo (Möller-Trumbore)
+│   │   └── plane.hpp        # Plano infinito
 │   ├── scene/               # Escena e iluminación
 │   │   ├── scene.hpp        # Contenedor de objetos/luces
 │   │   ├── object.hpp       # Clase base + HitRecord
@@ -71,16 +80,13 @@ raytracer_class/
 ### 1. Inicialización (`main.cpp`)
 ```
 main()
+  ├─> Parsea argumentos CLI (resolución opcional)
   ├─> Configura parámetros (resolución, SPP, maxDepth)
   ├─> Crea directorio output/
   ├─> Construye escena base (makeBaseScene)
   ├─> Construye cámara base (makeDefaultCamera)
-  ├─> Renderiza escena base
-  ├─> Guarda output/base.ppm
-  ├─> Construye escena libre (makeLibreScene)
-  ├─> Construye cámara libre (makeLibreCamera)
-  ├─> Renderiza escena libre
-  └─> Guarda output/libre.ppm
+  ├─> Renderiza escena
+  └─> Guarda output/render.ppm
 ```
 
 ### 2. Renderizado (`renderer.cpp`)
@@ -181,11 +187,6 @@ computeGlobalContribution(scene, rec, ray, depth)
 - **Intersección**: `t = dot(point-o, n) / dot(d, n)`
 - **Caso especial**: rayo paralelo (denominador ≈ 0)
 
-#### `triangle.hpp` - Triángulo
-- **Algoritmo**: Möller-Trumbore (intersección directa)
-- **Coordenadas baricéntricas**: `u,v` con `u≥0, v≥0, u+v≤1`
-- **Normal**: `cross(v1-v0, v2-v0)` (regla mano derecha)
-
 ---
 
 ### 🎨 Módulo Escena (`include/rt/scene/`)
@@ -231,14 +232,13 @@ computeGlobalContribution(scene, rec, ray, depth)
 
 #### `scene_presets.hpp/cpp` - Sistema de Configuración
 - **Structs de datos**:
-  - `SphereSpec`, `PlaneSpec`, `TriangleSpec`: geometría + material
+  - `SphereSpec`, `PlaneSpec`: geometría + material
   - `LightSpec`: posición + intensidad
   - `CameraPreset`: eye, target, up, vfov
   - `ScenePreset`: colección completa de objetos/luces
-- **Presets definidos**:
-  - `kBaseScene`: tres esferas con materiales distintos
-  - `kLibreScene`: composición artística con triángulo
-  - `kBaseCamera`, `kLibreCamera`: configuraciones de cámara
+- **Preset definido**:
+  - `kBaseScene`: tres esferas (difuso, metal, dieléctrico) + dos planos + una luz
+  - `kBaseCamera`: cámara en ángulo para observar el vidrio
 - **Builders**: `buildScene()`, `buildCamera()` construyen objetos runtime
 
 ---
@@ -263,19 +263,17 @@ Raíces: t = (-b ± √Δ) / a
 Elegir la más cercana en [t_min, t_max]
 ```
 
-### 🔺 Intersección Rayo-Triángulo (Möller-Trumbore)
+### 🔲 Intersección Rayo-Plano
 ```
+Plano: definido por punto P₀ y normal N
 Rayo: R(t) = o + td
-Triángulo: T(u,v) = v₀ + u·e₁ + v·e₂
-  donde e₁ = v₁-v₀, e₂ = v₂-v₀
 
-Sistema: o + td = v₀ + u·e₁ + v·e₂
-Resuelve para (t,u,v) usando productos cruz
+Ecuación: (R(t) - P₀) · N = 0
+Expandida: (o + td - P₀) · N = 0
+Resuelve para t: t = (P₀ - o) · N / (d · N)
 
 Condiciones:
-  - u ≥ 0
-  - v ≥ 0
-  - u + v ≤ 1
+  - d · N ≠ 0 (rayo no paralelo al plano)
   - t ∈ [t_min, t_max]
 ```
 
@@ -338,11 +336,10 @@ Aplicado por canal:
 3. **`scene.cpp::traceRay()`** - Recursión de trazado
 4. **`material_shading.cpp`** - Cálculos de iluminación
 
-### Para Entender la Geometría
+### Para Entender las Geometrías
 1. **`object.hpp`** - Interfaz base y HitRecord
 2. **`sphere.hpp`** - Intersección cuadrática
 3. **`plane.hpp`** - Intersección plano-rayo
-4. **`triangle.hpp`** - Möller-Trumbore
 
 ### Para Entender los Materiales
 1. **`material.hpp`** - Definición de tipos y parámetros
@@ -350,16 +347,19 @@ Aplicado por canal:
 3. **`material_shading.cpp::computeMetalContribution()`** - Reflexión
 4. **`material_shading.cpp::computeDielectricContribution()`** - Refracción
 
-### Para Modificar las Escenas
-1. **`scene_presets.cpp`** - Edita `kBaseScene` o `kLibreScene`
-2. Modifica materiales, posiciones, luces directamente
-3. Recompila con `make`
+### Para Modificar la Escena
+1. **`scene_presets.cpp`** - Edita `kBaseScene` (línea ~54)
+2. Modifica materiales, posiciones de esferas, luces directamente
+3. Ajusta `kBaseCamera` (línea ~107) para cambiar punto de vista
+4. Recompila con `make`
 
 ### Para Agregar Nueva Geometría
-1. Crea nuevo header en `include/rt/geom/`
+1. Crea nuevo header en `include/rt/geom/` (ej: `cylinder.hpp`)
 2. Hereda de `Object`
 3. Implementa `intersect(ray, t_min, t_max, rec)`
 4. Calcula normal y llama `rec.setFaceNormal()`
+5. Agrega `CylinderSpec` en `scene_presets.hpp`
+6. Instancia en `buildScene()` en `scene_presets.cpp`
 
 ---
 
@@ -410,12 +410,21 @@ make
 # Limpiar y recompilar
 make clean && make
 
-# Ejecutar (genera output/base.ppm y output/libre.ppm)
+# Ejecutar con resolución por defecto (1920x1080)
 ./build/raytracer
 
+# Ejecutar con resolución personalizada
+./build/raytracer 800 600
+
 # Convertir PPM a PNG (si tienes ImageMagick)
-convert output/base.ppm output/base.png
+convert output/render.ppm output/render.png
 ```
+
+### Parámetros Configurables
+- **Resolución**: por línea de comandos (`./build/raytracer <width> <height>`)
+- **SPP (samples per pixel)**: en `main.cpp`, línea ~54 (`RenderSettings`)
+- **maxDepth**: en `main.cpp`, línea ~99 (profundidad de recursión)
+- **Escena**: en `src/scene_presets.cpp` (materiales, posiciones, luces)
 
 ---
 

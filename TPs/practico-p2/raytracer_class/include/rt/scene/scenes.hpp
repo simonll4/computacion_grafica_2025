@@ -1,8 +1,14 @@
 // -----------------------------------------------------------------------------
-//  Archivo: scenes.hpp
-//  Descripción: Declaraciones de constructores de escenas/cámaras de ejemplo.
-//  `makeBaseScene` y `makeLibreScene` crean escenas listas para render con sus
-//  materiales y luces, y `makeDefaultCamera`/`makeLibreCamera` ajustan la vista.
+//  API pública para construcción de escenas
+// -----------------------------------------------------------------------------
+//  Funciones wrapper que delegan en el sistema de presets.
+//
+//  Escena base:
+//   - Cinco esferas: 3 principales (jade, plata, vidrio) + 2 mini (amarilla, magenta)
+//   - Plano verde
+//   - Cielo: gradiente naranja (color de fondo cuando no hay intersección)
+//   - Cuatro luces puntuales
+//   - Cámara en origen
 // -----------------------------------------------------------------------------
 #pragma once
 
@@ -11,6 +17,3 @@
 
 Scene makeBaseScene(int maxDepth);
 Camera makeDefaultCamera(int imageWidth, int imageHeight);
-
-Scene makeLibreScene(int maxDepth);
-Camera makeLibreCamera(int imageWidth, int imageHeight);

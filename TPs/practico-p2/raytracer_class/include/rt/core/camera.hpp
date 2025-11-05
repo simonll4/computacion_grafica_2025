@@ -1,78 +1,76 @@
 // -----------------------------------------------------------------------------
-//  Archivo: camera.hpp
-//  Descripción: Cámara pinhole. Construye el sistema de ejes de vista (u,v,w)
-//  a partir de (lookFrom, lookAt, vUp) y un tamaño de viewport definido por el
-//  FOV vertical (`vfov`) y la relación de aspecto. Provee `getRay(s,t)` para
-//  generar rayos primarios normalizados hacia coordenadas de imagen.
+//  Cámara pinhole
+// -----------------------------------------------------------------------------
+//  Genera rayos primarios desde un punto (ojo de la cámara) hacia un plano de
+//  imagen (viewport). El viewport se define mediante:
+//   - FOV vertical (vfov): ángulo de visión en grados
+//   - Aspect ratio: relación ancho/alto
+//   - Sistema de coordenadas (u,v,w) construido a partir de lookFrom/lookAt/vUp
 //
-//  Detalles importantes:
-//   - `w` apunta desde el objetivo hacia la cámara (dirección de vista opuesta).
-//   - `u` es el eje horizontal del plano de imagen; `v` el vertical.
-//   - `lowerLeftCorner` es la esquina inferior izquierda del viewport en el
-//     espacio de cámara. `horizontal` y `vertical` son sus vectores base.
-//   - `getRay(s,t)` interpola dentro del viewport: (0,0) = esquina inf. izq.,
-//     (1,1) = esquina sup. der. y devuelve un rayo normalizado.
+//  Sistema de ejes:
+//   - w: apunta desde lookAt hacia lookFrom (dirección "atrás" de la cámara)
+//   - u: eje horizontal (derecha) del viewport
+//   - v: eje vertical (arriba) del viewport
+//
+//  La función getRay(s,t) genera un rayo para las coordenadas normalizadas
+//  (s,t) en [0,1]×[0,1], donde (0,0) es esquina inferior izquierda y
+//  (1,1) es esquina superior derecha del viewport.
 // -----------------------------------------------------------------------------
 
 #pragma once
 
 #include <cmath>
-
 #include "rt/core/vec3.hpp"
 #include "rt/core/ray.hpp"
 
-inline double deg2rad(double degrees) { return degrees * M_PI / 180.0; }
+// Conversión grados → radianes
+inline double deg2rad(double degrees)
+{
+    constexpr double kPi = 3.14159265358979323846;
+    return degrees * kPi / 180.0;
+}
 
 class Camera
 {
 public:
-    // Posición de la cámara en mundo.
-    Vec3 origin;
+    Vec3 origin;          // Posición de la cámara en el mundo
+    Vec3 lowerLeftCorner; // Esquina inferior izquierda del viewport
+    Vec3 horizontal;      // Vector que recorre el ancho del viewport
+    Vec3 vertical;        // Vector que recorre el alto del viewport
 
-    // Esquina inferior izquierda del viewport en mundo.
-    Vec3 lowerLeftCorner;
-
-    // Vector horizontal del viewport (ancho del plano de imagen).
-    Vec3 horizontal;
-    
-    // Vector vertical del viewport (alto del plano de imagen).
-    Vec3 vertical;
-
-    // Parámetros:
-    //  - lookFrom: posición de la cámara.
-    //  - lookAt:   punto hacia el que mira la cámara.
-    //  - vUp:      vector "arriba" para definir la orientación vertical.
-    //  - vfov:     campo de visión vertical (grados).
-    //  - aspectRatio: ancho/alto del viewport.
+    // Constructor: configura la cámara según parámetros de posicionamiento y FOV
+    // lookFrom: posición del ojo
+    // lookAt:   punto hacia el que mira la cámara
+    // vUp:      vector "arriba" de referencia (ej: (0,1,0) para Y-up)
+    // vfov:     campo de visión vertical en grados
+    // aspectRatio: ancho/alto de la imagen (ej: 16/9 = 1.777...)
     Camera(const Vec3 &lookFrom, const Vec3 &lookAt, const Vec3 &vUp,
            double vfov, double aspectRatio)
     {
+        // Calcula dimensiones del viewport en espacio 3D
         double theta = deg2rad(vfov);
         double halfHeight = std::tan(theta / 2.0);
         double viewportHeight = 2.0 * halfHeight;
         double viewportWidth = aspectRatio * viewportHeight;
-        Vec3 w = normalized(lookFrom - lookAt);
-        Vec3 u = normalized(cross(vUp, w));
-        Vec3 v = cross(w, u);
+        
+        // Construye base ortonormal (u,v,w) de la cámara
+        Vec3 w = normalized(lookFrom - lookAt); // Eje "atrás" (desde target a ojo)
+        Vec3 u = normalized(cross(vUp, w));     // Eje "derecha"
+        Vec3 v = cross(w, u);                   // Eje "arriba"
+        
+        // Define geometría del viewport
         origin = lookFrom;
         horizontal = viewportWidth * u;
         vertical = viewportHeight * v;
         lowerLeftCorner = origin - horizontal * 0.5 - vertical * 0.5 - w;
     }
 
-    /// Genera un rayo primario desde la cámara hacia coordenadas (s,t) del viewport.
-    /// @param s Coordenada horizontal normalizada [0,1]: 0=izquierda, 1=derecha
-    /// @param t Coordenada vertical normalizada [0,1]: 0=abajo, 1=arriba
-    /// @return Rayo con origen en la cámara y dirección normalizada hacia (s,t)
+    // Genera rayo primario hacia coordenadas (s,t) del viewport
+    // s: horizontal en [0,1] (0=izquierda, 1=derecha)
+    // t: vertical en [0,1] (0=abajo, 1=arriba)
     Ray getRay(double s, double t) const
     {
-        // Interpola el punto dentro del viewport usando coordenadas baricéntricas:
-        // P(s,t) = lowerLeftCorner + s·horizontal + t·vertical
-        // Esto mapea [0,1]×[0,1] al rectángulo del viewport en espacio 3D
         Vec3 dir = lowerLeftCorner + s * horizontal + t * vertical - origin;
-        
-        // Normaliza la dirección para mantener consistencia en cálculos de iluminación
-        // (algunas fórmulas asumen dirección unitaria)
         return Ray(origin, normalized(dir));
     }
 };

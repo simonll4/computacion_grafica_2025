@@ -1,11 +1,18 @@
-// Presets con los datos de escena y los builders que generan Scene/Camera.
+// -----------------------------------------------------------------------------
+//  Definición de escenas y builders
+// -----------------------------------------------------------------------------
+//  Implementa:
+//   - Factories de materiales: makeDiffuse, makeMetal, makeDielectric
+//   - kBaseScene: cinco esferas + plano + cielo naranja + 4 luces
+//   - kBaseCamera: cámara en origen mirando hacia -Z
+//   - buildScene/buildCamera: convierten presets en instancias runtime
+// -----------------------------------------------------------------------------
 
 #include "rt/scene/scene_presets.hpp"
 #include "rt/scene/scene.hpp"
 #include "rt/core/camera.hpp"
 #include "rt/geom/sphere.hpp"
 #include "rt/geom/plane.hpp"
-#include "rt/geom/triangle.hpp"
 #include "rt/scene/light.hpp"
 
 #include <memory>
@@ -14,7 +21,7 @@ namespace rt::presets
 {
     namespace
     {
-        // Atajos para crear materiales con los parámetros que usa la consigna.
+        // Factories para construir materiales con parámetros Phong completos
         Material makeDiffuse(const Vec3 &albedo, double ka, double kd, double ks,
                              double shininess, const Vec3 &specColour = Vec3(1.0))
         {
@@ -46,171 +53,147 @@ namespace rt::presets
                                 double absorptionDistance = 0.0)
         {
             Material mat(MaterialType::Dielectric, albedo, 0.0, refractiveIndex, shininess,
-                         ka, kd, ks, specColour, absorption, absorptionDistance);
-            return mat;
+                         ka, kd, ks, specColour, absorption, absorptionDistance); // Configura tinte e índice
+            return mat;                                                           // Devuelve el dieléctrico listo (resto de campos permanecen según constructor)
         }
     }
 
-    // Escena base: plano + tres esferas (difusa, metálica y dieléctrica).
+    // Escena base: cielo naranja, cinco esferas, plano y 4 luces
     const ScenePreset kBaseScene = []()
     {
-        ScenePreset preset("Base Scene", Vec3(0.7, 0.8, 1.0), 5);
+        ScenePreset preset("Sunset Meadow", Vec3(0.92, 0.45, 0.28), 10); // Cielo naranja atardecer
 
-        // Materiales empleados en la escena base.
-        // Difuso rojo
-        Material diffuseRed = makeDiffuse(Vec3(0.82, 0.26, 0.24), 0.12, 0.88, 0.05, 32.0);
+        // Materiales
 
-        // Metal plateado
-        Material metalSilver = makeMetal(Vec3(0.92, 0.92, 0.94), 0.02, 0.05, 0.1, 1.0, 96.0,
-                                         Vec3(0.92, 0.92, 0.97));
-
-        // Dieléctrico (vidrio): con absorción cálida sutil para efecto más realista
-        // La absorción (0.004, 0.003, 0.002) da un leve tinte ámbar al atravesar el material
-        Material dielectricGlass = makeDielectric(
-            Vec3(1.0, 1.0, 1.0),       // albedo
-            1.5,                       // índice de refracción (vidrio estándar)
-            0.02,                      // ka (ambiente mínimo)
-            0.05,                      // kd (difuso muy bajo)
-            1.0,                       // ks (reflexión especular máxima)
-            128.0,                     // shininess (highlight concentrado)
-            Vec3(1.0, 1.0, 1.0),       // specColour (blanco puro)
-            Vec3(0.004, 0.003, 0.002), // absorción cálida (leve ámbar)
-            1.0                        // distancia de absorción
+        // Suelo: verde medio
+        Material grassMat = makeDiffuse( // Material difuso para el plano de suelo
+            Vec3(0.18, 0.42, 0.25),      // albedo: verde medio natural
+            0.14,                        // ka: un poco más de ambiente
+            0.80,                        // kd: sigue siendo difuso dominante
+            0.08,                        // ks: ligero brillo superficial
+            20.0,                        // shininess: mate
+            Vec3(0.88, 0.92, 0.86)       // specularColour: neutro
         );
 
-        // Material del piso
-        Material groundMat = makeDiffuse(Vec3(0.82, 0.82, 0.84), 0.12, 0.88, 0.03, 8.0);
+        // Difuso jade
+        Material diffuseJade = makeDiffuse( // Material para la esfera difusa verde
+            Vec3(0.22, 0.62, 0.53),
+            0.16, 0.76, 0.12, 38.0,
+            Vec3(0.92, 0.96, 0.88));
 
-        // Material de la pared de fondo: gris azulado oscuro para crear contraste
-        // con el vidrio y hacer visible la refracción/reflexión
-        Material backWallMat = makeDiffuse(Vec3(0.70, 0.75, 0.85), 0.1, 0.9, 0.02, 12.0);
+        // Amarillo fuerte
+        Material diffuseBrightYellow = makeDiffuse( // Material para esfera amarilla pequeña
+            Vec3(1.00, 0.88, 0.05),
+            0.22, 0.78, 0.14, 40.0,
+            Vec3(1.00, 0.96, 0.70));
 
-        // Plano de piso y pared posterior visibles en la escena.
-        preset.planes.emplace_back(Vec3(0, -1.0, 0), Vec3(0, 1, 0), groundMat);
-        preset.planes.emplace_back(Vec3(0, 0, -7.0), Vec3(0, 0, 1), backWallMat);
+        // Magenta neón
+        Material diffuseNeonMagenta = makeDiffuse( // Material para esfera magenta pequeña
+            Vec3(0.95, 0.10, 0.80),
+            0.20, 0.75, 0.18, 42.0,
+            Vec3(0.95, 0.80, 1.00));
 
-        // Esferas con materiales difuso, metálico y dieléctrico.
-        preset.spheres.emplace_back(Vec3(-1.5, 0.0, -4.5), 1.0, diffuseRed);
-        preset.spheres.emplace_back(Vec3(2, 0.0, -4.0), 1.0, metalSilver);
+        // Metal plata
+        Material metalSilver = makeMetal( // Material metálico para la esfera derecha
+            Vec3(0.55, 0.55, 0.60),
+            0.08,                  // fuzz mayor ⇒ highlight más ancho
+            0.02,                  // ka muy bajo
+            0.02,                  // kd casi nulo (metal)
+            0.75,                  // ks menor ⇒ menos espejo puro
+            120.0,                 // shininess menor ⇒ hotspot más blando
+            Vec3(0.92, 0.94, 0.98) // especular frío con leve atenuación
+        );
 
-        // Esfera de vidrio: posicionada más adelante (-2.5 vs -2.8) para dejar
-        // espacio entre ella y la pared, haciendo más visible la refracción del fondo
-        preset.spheres.emplace_back(Vec3(0.0, -0.3, -2.5), 0.7, dielectricGlass);
+        // Vidrio con leve absorción
+        Material dielectricGlass = makeDielectric( // Material dieléctrico para esfera central
+            Vec3(1.0, 1.0, 1.0),                   // albedo
+            1.5,                                   // IOR vidrio
+            0.0, 0.0, 0.0,                         // ka, kd, ks: sin iluminación local
+            500.0,                                 // shininess
+            Vec3(1.0, 1.0, 1.0),                   // specular blanco
+            Vec3(0.06, 0.03, 0.01),                // absorción cálida (R,G,B) → ámbar sutil
+            2.0                                    // distancia de absorción (mira bien en esferas grandes)
+        );
 
-        // Luz principal: posicionada arriba y atrás del vidrio para crear
-        // highlight especular nítido y realzar la refracción
-        preset.lights.emplace_back(Vec3(0.0, 3.0, -3.0), Vec3(1.0, 1.0, 1.0));
+        // ====== Geometría ======
+        preset.planes.emplace_back(Vec3(0.0, -1.0, 0.0), Vec3(0, 1, 0), grassMat); // Plano del suelo horizontal
 
-        return preset;
+        // Izquierda: Difusa jade
+        preset.spheres.emplace_back(Vec3(-4.0, 0.0, -13.0), 1.05, diffuseJade); // Esfera difusa izquierda
+
+        // Centro: Vidrio
+        preset.spheres.emplace_back(Vec3(-1.0, 0.0, -13.0), 1.10, dielectricGlass); // Esfera central de vidrio
+
+        // Derecha: Metal (plata)
+        preset.spheres.emplace_back(Vec3(1.5, 0.1, -8.0), 1.10, metalSilver); // Esfera metálica derecha
+
+        // Mini esferas
+        preset.spheres.emplace_back(Vec3(-1.0, -0.64, -18.0), 0.36, diffuseBrightYellow); // Esfera pequeña amarilla
+        preset.spheres.emplace_back(Vec3(-1.0, -0.80, -5.0), 0.20, diffuseNeonMagenta);   // Esfera pequeña magenta
+
+        // ====== Iluminación cielo ======
+        preset.lights.emplace_back(
+            Vec3(-8.0, 6.0, -2.0), // sol sobre el horizonte a la izquierda
+            Vec3(4.2, 2.9, 1.8)    // cálido (naranja)
+        );
+        preset.lights.emplace_back(
+            Vec3(6.0, 3.0, 2.0), // luz de cielo opuesta (relleno)
+            Vec3(0.6, 0.8, 1.3)  // azulada, baja intensidad
+        );
+        preset.lights.emplace_back(
+            Vec3(-3.2, 1.3, -10.1), // rebote cálido rasante
+            Vec3(0.7, 0.45, 0.35));
+        preset.lights.emplace_back(
+            Vec3(2.5, 4.5, -6.0), // rim sutil para el metal/vidrio
+            Vec3(0.45, 0.55, 0.9));
+
+        return preset; // Devuelve el preset completamente configurado
     }();
 
-    // Escena libre: objetos variados + triángulo para validar intersecciones.
-    const ScenePreset kLibreScene = []()
-    {
-        ScenePreset preset("Libre Scene", Vec3(0.7, 0.8, 1.0), 5);
-
-        // Materiales empleados en la escena libre.
-        // Difuso rojo/albedo
-        Material diffuseAlbedo = makeDiffuse(Vec3(0.78, 0.25, 0.2), 0.12, 0.9, 0.06, 24.0);
-
-        // Difuso verde (acento)
-        Material accentGreen = makeDiffuse(Vec3(0.25, 0.65, 0.38), 0.1, 0.9, 0.04, 20.0);
-
-        // Metal dorado
-        Material metalGold = makeMetal(Vec3(0.94, 0.82, 0.58), 0.1, 0.05, 0.15, 1.0, 96.0,
-                                       Vec3(0.95, 0.82, 0.45));
-
-        // Dieléctrico (vidrio)
-        Material dielectricGlass = makeDielectric(Vec3(1.0, 1.0, 1.0), 1.5, 0.02, 0.05, 1.0, 96.0,
-                                                  Vec3(0.98, 0.99, 1.0));
-
-        // Material del piso
-        Material groundMat = makeDiffuse(Vec3(0.9, 0.88, 0.85), 0.12, 0.88, 0.04, 10.0);
-
-        // Material de la pared de fondo
-        Material backWallMat = makeDiffuse(Vec3(0.76, 0.8, 0.86), 0.1, 0.9, 0.03, 14.0);
-
-        // Escenografía base: piso y pared de fondo.
-        preset.planes.emplace_back(Vec3(0, -1.0, 0), Vec3(0, 1, 0), groundMat);
-        preset.planes.emplace_back(Vec3(0, 0, -7.0), Vec3(0, 0, 1), backWallMat);
-
-        // Objetos con materiales variados y tamaños diferentes.
-        preset.spheres.emplace_back(Vec3(-0.85, -0.6, -2.6), 0.4, diffuseAlbedo);
-        preset.spheres.emplace_back(Vec3(0.35, -0.35, -3.8), 0.7, dielectricGlass);
-        preset.spheres.emplace_back(Vec3(1.75, -0.2, -3.3), 0.85, metalGold);
-
-        // Triángulo para testear intersección Möller–Trumbore.
-        preset.triangles.emplace_back(Vec3(-3.4, -1.0, -4),
-                                      Vec3(-2.1, -1.0, -4),
-                                      Vec3(-2.75, 1.4, -4),
-                                      accentGreen);
-
-        // Tres luces con intensidades distintas para generar contraste.
-        preset.lights.emplace_back(Vec3(-4.5, 4.5, -3.0), Vec3(1.0, 0.96, 0.92));
-        preset.lights.emplace_back(Vec3(4.0, 3.0, 1.0), Vec3(0.35, 0.4, 0.5));
-        preset.lights.emplace_back(Vec3(0.0, 6.0, -8.0), Vec3(0.45, 0.45, 0.45));
-
-        return preset;
-    }();
-
-    // Cámara base: posicionada en ángulo para observar mejor el vidrio
-    // La vista lateral realza la reflexión parcial y la refracción del fondo
+    // Cámara
     const CameraPreset kBaseCamera(
-        Vec3(0.8, 0.9, 1.7),    // eye: ligeramente elevada y de costado
-        Vec3(-0.2, -0.2, -3.5), // target: mira hacia el centro de la escena
-        Vec3(0.0, 1.0, 0.0),    // up: vertical estándar
-        55.0                    // vfov: FOV medio para menos distorsión
-    );
-
-    const CameraPreset kLibreCamera(
-        Vec3(2.2, 1.4, 3.4),    // eye (lookFrom)
-        Vec3(-0.2, -0.4, -4.0), // target (lookAt)
-        Vec3(0.0, 1.0, 0.0),    // up (vUp)
-        50.0                    // vfov
+        Vec3(0.0, 0.0, 0.0), // eye: origen del sistema
+        Vec3(0.0, 0.0, -1),  // target: alineado con -Z
+        Vec3(0.0, 1.0, 0.0), // up: vertical
+        35.0                 // vfov: más amplio para capturar todas las esferas
     );
 
     Scene buildScene(const ScenePreset &preset, int maxDepthOverride)
     {
-        Scene scene;
-        scene.backgroundColour = preset.backgroundColour;
-        scene.maxDepth = (maxDepthOverride >= 0) ? maxDepthOverride : preset.defaultMaxDepth;
+        Scene scene;                                                                          // Escena runtime a devolver
+        scene.backgroundColour = preset.backgroundColour;                                     // Copia el color de fondo
+        scene.maxDepth = (maxDepthOverride >= 0) ? maxDepthOverride : preset.defaultMaxDepth; // Selecciona profundidad efectiva
 
         // Reservar capacidad para evitar realocaciones
-        size_t totalObjects = preset.planes.size() + preset.spheres.size() + preset.triangles.size();
-        scene.objects.reserve(totalObjects);
-        scene.lights.reserve(preset.lights.size());
+        size_t totalObjects = preset.planes.size() + preset.spheres.size(); // Cantidad total de geometrías
+        scene.objects.reserve(totalObjects);                                // Reserva memoria para objetos
+        scene.lights.reserve(preset.lights.size());                         // Reserva para luces
 
         // Agregar planos
-        for (const auto &spec : preset.planes)
+        for (const auto &spec : preset.planes) // Convierte cada especificación de plano en objeto concreto
         {
             scene.addObject(std::make_shared<Plane>(spec.point, spec.normal, spec.material));
         }
 
         // Agregar esferas
-        for (const auto &spec : preset.spheres)
+        for (const auto &spec : preset.spheres) // Crea objetos esfera a partir del preset
         {
             scene.addObject(std::make_shared<Sphere>(spec.center, spec.radius, spec.material));
         }
 
-        // Agregar triángulos
-        for (const auto &spec : preset.triangles)
-        {
-            scene.addObject(std::make_shared<Triangle>(spec.v0, spec.v1, spec.v2, spec.material));
-        }
-
         // Agregar luces
-        for (const auto &spec : preset.lights)
+        for (const auto &spec : preset.lights) // Copia cada luz puntual al contenedor final
         {
             scene.addLight(Light(spec.position, spec.intensity));
         }
 
-        return scene;
+        return scene; // Escena lista para renderizar
     }
 
     Camera buildCamera(const CameraPreset &preset, int width, int height)
     {
-        double aspectRatio = static_cast<double>(width) / height;
-        return Camera(preset.eye, preset.target, preset.up, preset.vfov, aspectRatio);
+        double aspectRatio = static_cast<double>(width) / height;                      // ratio ancho/alto solicitado
+        return Camera(preset.eye, preset.target, preset.up, preset.vfov, aspectRatio); // Instancia cámara con FOV del preset
     }
 
 } // namespace rt::presets

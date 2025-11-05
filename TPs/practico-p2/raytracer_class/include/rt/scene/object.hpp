@@ -1,8 +1,17 @@
 // -----------------------------------------------------------------------------
-//  Archivo: object.hpp
-//  Descripción: Definiciones base para objetos de escena e información de golpe
-//  (HitRecord). Los objetos concretos (esfera, plano, triángulo) heredan de
-//  `Object` e implementan `intersect` para poblar un `HitRecord` válido.
+//  Clase base para geometría y registro de intersección
+// -----------------------------------------------------------------------------
+//  Define la interfaz polimórfica Object y la estructura HitRecord.
+//
+//  HitRecord almacena toda la información necesaria tras una intersección:
+//   - Punto de impacto
+//   - Normal de superficie (orientada contra el rayo)
+//   - Parámetro t del rayo
+//   - Si el rayo entró por la cara frontal o trasera
+//   - Material del objeto impactado
+//
+//  Object es la clase base para todas las geometrías (Sphere, Plane, etc.)
+//  y define el método virtual intersect() que cada forma implementa.
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -11,21 +20,17 @@
 #include "rt/core/ray.hpp"
 #include "rt/scene/material.hpp"
 
+// Registro de intersección rayo-superficie
 struct HitRecord
 {
-    // Punto de impacto sobre la superficie (en espacio mundo).
-    Vec3 point;
-    // Normal orientada contra la dirección del rayo incidente.
-    Vec3 normal;
-    // Parámetro del rayo en el impacto (p = ray.at(t)).
-    double t;
-    // Verdadero si el rayo golpeó la cara "frontal" (entrando al objeto).
-    bool frontFace;
-    // Material del objeto en el punto de impacto.
-    Material material;
+    Vec3 point;       // Punto de impacto en coordenadas mundo
+    Vec3 normal;      // Normal de superficie orientada contra el rayo
+    double t;         // Distancia paramétrica: point = ray.at(t)
+    bool frontFace;   // true si rayo entró por cara frontal
+    Material material; // Material del objeto en este punto
 
-    // Ajusta la orientación de la normal para que siempre se oponga al rayo.
-    // Además determina si se trata de un impacto en la cara frontal o trasera.
+    // Configura la normal y determina si es cara frontal/trasera
+    // outwardNormal: normal geométrica (apunta "hacia afuera" del objeto)
     inline void setFaceNormal(const Ray &ray, const Vec3 &outwardNormal)
     {
         frontFace = dot(ray.direction, outwardNormal) < 0;
@@ -33,15 +38,18 @@ struct HitRecord
     }
 };
 
+// Clase base abstracta para objetos geométricos
 class Object
 {
 public:
-    // Material del objeto (se copia al HitRecord en un impacto).
-    Material material;
+    Material material; // Material de todo el objeto (uniforme)
+    
     explicit Object(const Material &m) : material(m) {}
     virtual ~Object() = default;
-    // Debe escribir en `rec` si hay intersección válida dentro del rango [t_min, t_max].
-    // Devuelve true si hay hit; en ese caso `rec.t` debe ser el más cercano.
+    
+    // Test de intersección rayo-objeto
+    // Debe escribir en 'rec' si encuentra intersección en [t_min, t_max]
+    // Retorna true solo si hay hit válido
     virtual bool intersect(const Ray &ray, double t_min, double t_max, HitRecord &rec) const = 0;
 };
 
