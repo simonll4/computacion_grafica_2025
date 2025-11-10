@@ -20,9 +20,9 @@ class Scene;
 namespace shading
 {
 
-Vec3 computeLocalLighting(const Scene &scene, const HitRecord &rec, const Ray &ray);
-Vec3 computeMetalContribution(const Scene &scene, const HitRecord &rec, const Ray &ray, int depth);
-Vec3 computeDielectricContribution(const Scene &scene, const HitRecord &rec, const Ray &ray, int depth);
-Vec3 computeGlobalContribution(const Scene &scene, const HitRecord &rec, const Ray &ray, int depth);
+    Vec3 computeLocalLighting(const Scene &scene, const HitRecord &rec, const Ray &ray);
+    Vec3 computeMetalContribution(const Scene &scene, const HitRecord &rec, const Ray &ray, int depth);
+    Vec3 computeDielectricContribution(const Scene &scene, const HitRecord &rec, const Ray &ray, int depth);
+    Vec3 computeGlobalContribution(const Scene &scene, const HitRecord &rec, const Ray &ray, int depth);
 
 } // namespace shading

@@ -12,10 +12,10 @@
 
 struct Ray
 {
-    Vec3 origin;     // Punto de origen del rayo (donde "nace")
-    Vec3 direction;  // Dirección del rayo (no necesariamente unitaria)
+    Vec3 origin;    // Punto de origen del rayo (donde "nace")
+    Vec3 direction; // Dirección del rayo (no necesariamente unitaria)
 
-    Ray() : origin(), direction(0, 0, 1) {}                       // Constructor por defecto: rayo en +Z
+    Ray() : origin(), direction(0, 0, 1) {}                        // Constructor por defecto: rayo en +Z
     Ray(const Vec3 &o, const Vec3 &d) : origin(o), direction(d) {} // Constructor parametrizado
 
     // Evalúa el punto del rayo a distancia paramétrica t: r(t) = o + t·d

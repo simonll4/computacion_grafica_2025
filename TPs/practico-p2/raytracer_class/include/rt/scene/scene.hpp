@@ -41,7 +41,7 @@ public:
         HitRecord tempRec;
         bool hitAnything = false;
         double closestSoFar = t_max;
-        
+
         for (const auto &obj : objects)
         {
             if (obj->intersect(ray, t_min, closestSoFar, tempRec))
@@ -51,7 +51,7 @@ public:
                 rec = tempRec;
             }
         }
-        
+
         return hitAnything;
     }
 

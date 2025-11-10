@@ -7,7 +7,7 @@
 //  Intersección rayo-plano:
 //    Rayo: r(t) = o + t·d
 //    Plano: (r(t) - P₀) · N = 0
-//    
+//
 //  Resolviendo para t:
 //    (o + t·d - P₀) · N = 0
 //    t·(d·N) = (P₀ - o)·N
@@ -16,6 +16,7 @@
 //  Casos especiales:
 //   - Si d·N ≈ 0: rayo paralelo al plano (sin intersección o infinitas)
 //   - Si t < t_min o t > t_max: fuera del rango visible
+//   - Si además (P₀ - o)·N ≈ 0: el rayo yace en el plano (múltiples soluciones). Aquí se descarta retornando false.
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -35,19 +36,19 @@ public:
     {
         // Proyección de la dirección del rayo sobre la normal
         double denom = dot(normal, ray.direction);
-        
+
         // Si denom ≈ 0, el rayo es paralelo al plano
         const double EPS = 1e-8;
         if (std::abs(denom) < EPS)
             return false;
-        
-        // Calcula parámetro t de intersección
+
+        // Calcula el parámetro t de intersección
         double t = dot(point - ray.origin, normal) / denom;
-        
+
         // Verifica que esté en el rango válido
         if (t < t_min || t > t_max)
             return false;
-        
+
         // Llena registro de intersección
         rec.t = t;
         rec.point = ray.at(t);

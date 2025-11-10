@@ -11,11 +11,12 @@
 #include "rt/scene/scene.hpp"
 #include "rt/core/camera.hpp"
 
-struct RenderSettings {
-    int width;            // Ancho de la imagen en píxeles
-    int height;           // Alto de la imagen en píxeles
-    int samplesPerPixel;  // Muestras por píxel para antialiasing (SPP)
+struct RenderSettings
+{
+    int width;           // Ancho de la imagen en píxeles
+    int height;          // Alto de la imagen en píxeles
+    int samplesPerPixel; // Muestras por píxel para antialiasing (SPP)
 };
 
 // Renderiza la escena completa y devuelve la imagen resultante
-Image render(const Scene& scene, const Camera& camera, const RenderSettings& settings);
+Image render(const Scene &scene, const Camera &camera, const RenderSettings &settings);

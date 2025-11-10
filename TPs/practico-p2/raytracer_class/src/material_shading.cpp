@@ -193,9 +193,9 @@ namespace shading
         }
 
         // Mezcla determinística: R·reflectance + T·(1-reflectance)
-    Vec3 finalColour = reflectColour * reflectance + refractColour * (1.0 - reflectance);
+        Vec3 finalColour = reflectColour * reflectance + refractColour * (1.0 - reflectance);
 
-    return finalColour * rec.material.albedo; // Tinte base del material (absorción aplicada arriba)
+        return finalColour * rec.material.albedo; // Tinte base del material (absorción aplicada arriba)
     }
 
     // -------------------------------------------------------------------------

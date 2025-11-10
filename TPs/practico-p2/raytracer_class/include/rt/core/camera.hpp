@@ -52,12 +52,12 @@ public:
         double halfHeight = std::tan(theta / 2.0);
         double viewportHeight = 2.0 * halfHeight;
         double viewportWidth = aspectRatio * viewportHeight;
-        
+
         // Construye base ortonormal (u,v,w) de la cámara
         Vec3 w = normalized(lookFrom - lookAt); // Eje "atrás" (desde target a ojo)
         Vec3 u = normalized(cross(vUp, w));     // Eje "derecha"
         Vec3 v = cross(w, u);                   // Eje "arriba"
-        
+
         // Define geometría del viewport
         origin = lookFrom;
         horizontal = viewportWidth * u;

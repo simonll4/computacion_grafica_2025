@@ -3,15 +3,15 @@
 // -----------------------------------------------------------------------------
 //  Resuelve la intersección rayo-esfera mediante ecuación cuadrática.
 //
-//  Dado rayo r(t) = o + t·d y esfera con centro c y radio R:
-//    ||r(t) - c||² = R²
+//  Dado rayo r(t) = o + t·d y esfera con centro C y radio R:
+//    ||r(t) - C||² = R²
 //  Expandiendo:
-//    ||o + t·d - c||² = R²
+//    ||o + t·d - C||² = R²
 //    a·t² + 2b·t + c = 0
 //  donde:
 //    a = ||d||²         (siempre >0 si d normalizada → a≈1)
-//    b = (o-c)·d        (proyección del offset sobre la dirección)
-//    c = ||o-c||² - R²  (distancia al centro menos radio al cuadrado)
+//    b = (o-C)·d        (proyección del offset sobre la dirección)
+//    c = ||o-C||² - R²  (distancia al centro menos radio al cuadrado)
 //
 //  Discriminante Δ = b² - ac:
 //    Δ < 0: sin intersección
@@ -37,19 +37,19 @@ public:
     bool intersect(const Ray &ray, double t_min, double t_max, HitRecord &rec) const override
     {
         Vec3 oc = ray.origin - center; // Vector desde centro a origen del rayo
-        
+
         // Coeficientes de la cuadrática a·t² + 2b·t + c = 0
         double a = dot(ray.direction, ray.direction);
         double half_b = dot(oc, ray.direction);
         double c = dot(oc, oc) - radius * radius;
-        
+
         // Discriminante (usamos half_b para estabilidad numérica)
         double discriminant = half_b * half_b - a * c;
         if (discriminant < 0)
             return false; // No hay intersección
-        
+
         double sqrtDiscriminant = std::sqrt(discriminant);
-        
+
         // Prueba raíz más cercana: t = (-b - √Δ) / a
         double root = (-half_b - sqrtDiscriminant) / a;
         if (root < t_min || root > t_max)
@@ -59,7 +59,7 @@ public:
             if (root < t_min || root > t_max)
                 return false; // Ambas raíces fuera del rango válido
         }
-        
+
         // Llena el registro de intersección
         rec.t = root;
         rec.point = ray.at(rec.t);
